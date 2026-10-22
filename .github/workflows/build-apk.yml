@@ -71,7 +71,7 @@ jobs:
           PY
           grep -n -A12 'verifyGhostcoreArm64' app/build.gradle.kts
 
-      - name: Extend app behind status bar and camera cutout
+      - name: Extend every Activity behind status bar and camera cutout
         shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
@@ -81,17 +81,14 @@ jobs:
           import re
 
           roots = [Path("app/src/main/java"), Path("app/src/main/kotlin")]
-          files = [p for root in roots if root.exists() for p in root.rglob("*Activity.kt")]
-          files += [p for root in roots if root.exists() for p in root.rglob("*Activity.java")]
+          files = []
+          for root in roots:
+              if root.exists():
+                  files.extend(root.rglob("*Activity.kt"))
+                  files.extend(root.rglob("*Activity.java"))
+          files = sorted(set(files))
           if not files:
-              raise SystemExit("No Activity source file found; cannot safely apply edge-to-edge mode.")
-          files.sort(key=lambda p: (0 if "MainActivity" in p.name else 1, str(p)))
-          p = files[0]
-          s = p.read_text(encoding="utf-8")
-          marker = "GHOSTS_EDGE_TO_EDGE_STATUS_BAR"
-          if marker in s:
-              print(f"Edge-to-edge mode already configured in {p}")
-              raise SystemExit(0)
+              raise SystemExit("No Activity source files found; cannot apply edge-to-edge mode.")
 
           kt = """
                   // GHOSTS_EDGE_TO_EDGE_STATUS_BAR: draw behind status bar and into the display cutout area.
@@ -125,12 +122,23 @@ jobs:
                   );
           """
           pattern = r'super\.onCreate\(savedInstanceState\)'
-          block = kt if p.suffix == ".kt" else java
-          updated, n = re.subn(pattern, lambda m: m.group(0) + block, s, count=1)
-          if n != 1:
-              raise SystemExit(f"Could not find onCreate(savedInstanceState) in {p}; no source changed.")
-          p.write_text(updated, encoding="utf-8")
-          print(f"Enabled edge-to-edge status bar/cutout layout in {p}")
+          changed = 0
+          for p in files:
+              s = p.read_text(encoding="utf-8")
+              if "GHOSTS_EDGE_TO_EDGE_STATUS_BAR" in s:
+                  print(f"Already configured: {p}")
+                  continue
+              block = kt if p.suffix == ".kt" else java
+              updated, n = re.subn(pattern, lambda m: m.group(0) + block, s, count=1)
+              if n != 1:
+                  print(f"WARNING: skipped {p}: onCreate(savedInstanceState) not found")
+                  continue
+              p.write_text(updated, encoding="utf-8")
+              changed += 1
+              print(f"Enabled edge-to-edge: {p}")
+          if changed == 0 and not any("GHOSTS_EDGE_TO_EDGE_STATUS_BAR" in p.read_text(encoding="utf-8") for p in files):
+              raise SystemExit("Could not apply edge-to-edge mode to any Activity.")
+          print(f"Processed {len(files)} Activity source files; updated {changed}.")
           PY
 
       - name: Apply adaptive accessible phone layout
