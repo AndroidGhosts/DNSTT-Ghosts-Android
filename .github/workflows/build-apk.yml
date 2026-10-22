@@ -63,11 +63,9 @@ jobs:
           from pathlib import Path
           p = Path("app/build.gradle.kts")
           s = p.read_text()
-          s = s.replace("val zip = java.util.zip.ZipFile(aar)", "val zipFile = java.util.zip.ZipFile(aar)")
-          s = s.replace("val entry = zip.getEntry(", "val entry = zipFile.getEntry(")
-          s = s.replace('            if (entry.size <= 0L) throw GradleException("ARM64 libgojni.so is empty")\n', "")
-          s = s.replace('            logger.lifecycle("Verified ghostcore ARM64 native library: ${entry.size()} bytes")', '            logger.lifecycle("Verified ghostcore ARM64 native library entry: ${entry.name}")')
-          s = s.replace("            zip.close()", "            zipFile.close()")
+          if "import java.util.zip.ZipFile" not in s:
+              s = "import java.util.zip.ZipFile\n" + s
+          s = s.replace("java.util.zip.ZipFile(aar)", "ZipFile(aar)")
           p.write_text(s)
           PY
           grep -n -A12 'verifyGhostcoreArm64' app/build.gradle.kts
