@@ -20,7 +20,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ZIP_FILE="$(find . -maxdepth 2 -type f -iname '*.zip' -print -quit)"
+          ZIP_FILE="$(find . -maxdepth 2 -type f -iname '*arm64*source*.zip' -print -quit)"
+          if [ -z "$ZIP_FILE" ]; then
+            ZIP_FILE="$(find . -maxdepth 2 -type f -iname '*.zip' -print -quit)"
+          fi
           if [ -z "$ZIP_FILE" ]; then
             echo "::error::No source ZIP was found in the repository root."
             exit 1
