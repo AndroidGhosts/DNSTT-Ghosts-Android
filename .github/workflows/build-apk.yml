@@ -109,7 +109,7 @@ jobs:
 
           # Ensure the primary connect control is compact regardless of its
           # original value or attribute order.
-          pattern = re.compile(r'<[A-Za-z][^>]*@\\+id/connectButton[^>]*>', re.DOTALL)
+          pattern = re.compile(r'<[A-Za-z][^>]*@\+id/connectButton[^>]*>', re.DOTALL)
           match = pattern.search(s)
           if not match:
               raise SystemExit("Could not find connectButton in activity_main.xml")
