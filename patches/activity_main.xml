@@ -7,9 +7,9 @@
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent" android:layout_height="?attr/actionBarSize"
-        android:background="@color/primary_dark"
+        android:background="#39FF14_dark"
         android:elevation="4dp" android:fitsSystemWindows="true"
-        app:title="@string/app_name" app:titleTextColor="@color/accent" />
+        app:title="@string/app_name" app:titleTextColor="#39FF14" />
 
     <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:layout_width="match_parent" android:layout_height="match_parent"
@@ -26,8 +26,8 @@
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
-                    app:cardBackgroundColor="#FF041719"
-                    app:strokeColor="#FF087D8E" app:strokeWidth="1dp"
+                    app:cardBackgroundColor="#FF050A06"
+                    app:strokeColor="#FF39FF14" app:strokeWidth="1dp"
                     app:cardElevation="5dp" app:cardCornerRadius="20dp">
                     <LinearLayout
                         android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -35,13 +35,13 @@
                         android:paddingVertical="17dp">
                         <TextView
                             android:layout_width="match_parent" android:layout_height="wrap_content"
-                            android:text="Android_Ghosts 👻" android:textColor="@color/accent"
+                            android:text="Android_Ghosts 👻" android:textColor="#39FF14"
                             android:textSize="25sp" android:textStyle="bold" android:letterSpacing="0.025"
-                            android:shadowColor="#5500EAFF" android:shadowRadius="8" />
+                            android:shadowColor="#5539FF14" android:shadowRadius="8" />
                         <TextView
                             android:layout_width="match_parent" android:layout_height="wrap_content"
                             android:layout_marginTop="4dp" android:text="@string/brand_subtitle"
-                            android:textColor="@color/accent" android:textSize="14sp" android:textStyle="bold" />
+                            android:textColor="#39FF14" android:textSize="14sp" android:textStyle="bold" />
                         <TextView
                             android:layout_width="match_parent" android:layout_height="wrap_content"
                             android:layout_marginTop="5dp" android:text="@string/brand_note"
@@ -50,7 +50,7 @@
                             android:id="@+id/telegramLink"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:layout_marginTop="12dp" android:minHeight="48dp" android:paddingHorizontal="12dp" android:paddingVertical="9dp"
-                            android:background="@drawable/bg_connect" android:text="@string/brand_telegram" android:textColor="@color/accent"
+                            android:background="@drawable/bg_connect" android:text="@string/brand_telegram" android:textColor="#39FF14"
                             android:textSize="12sp" android:textStyle="bold"
                             android:clickable="true" android:focusable="true"
                             android:foreground="?attr/selectableItemBackground" />
@@ -59,8 +59,8 @@
 
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent" android:layout_height="wrap_content"
-                    app:cardBackgroundColor="#FF041417" app:cardCornerRadius="20dp" app:cardElevation="5dp"
-                    app:strokeColor="#FF07525D" app:strokeWidth="1dp">
+                    app:cardBackgroundColor="#FF050A06" app:cardCornerRadius="20dp" app:cardElevation="5dp"
+                    app:strokeColor="#FF1BFF5A" app:strokeWidth="1dp">
 
                     <LinearLayout
                         android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -97,7 +97,7 @@
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
                             android:layout_marginTop="12dp" android:gravity="center"
                             android:text="@string/status_stopped" android:textSize="18sp" android:textStyle="bold"
-                            android:textColor="@color/primary" />
+                            android:textColor="#39FF14" />
 
                         <TextView
                             android:id="@+id/profileText"
@@ -108,11 +108,11 @@
                         <LinearLayout
                             android:layout_width="match_parent" android:layout_height="wrap_content"
                             android:layout_marginTop="12dp" android:orientation="vertical"
-                            android:padding="10dp" android:background="#FF031014">
+                            android:padding="10dp" android:background="#FF020503">
                             <TextView
                                 android:layout_width="wrap_content" android:layout_height="wrap_content"
                                 android:text="@string/traffic_activity" android:textStyle="bold"
-                                android:textSize="14sp" android:textColor="@color/accent" />
+                                android:textSize="14sp" android:textColor="#39FF14" />
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/chartWindowButton"
                                 style="@style/Widget.Material3.Button.TextButton"
@@ -151,12 +151,12 @@
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:layout_marginTop="16dp" android:layout_marginBottom="8dp"
                     android:text="@string/profiles" android:textSize="18sp" android:textStyle="bold"
-                    android:textColor="@color/accent" />
+                    android:textColor="#39FF14" />
 
                 <TextView
                     android:id="@+id/emptyText"
                     android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:padding="16dp" android:background="#FF041417" android:text="@string/no_profiles"
+                    android:padding="16dp" android:background="#FF050A06" android:text="@string/no_profiles"
                     android:textColor="@color/text_secondary" />
 
                 <androidx.recyclerview.widget.RecyclerView
