@@ -187,6 +187,8 @@ s = s.replace("""            val entry = zip.getEntry("jni/arm64-v8a/libgojni.so
                     ?: throw GradleException("ghostcore.aar does not include jni/$abi/libgojni.so")
                 if (entry.size <= 0L) throw GradleException("Empty native library for $abi")
             }''')
+# Remove the stale ARM64-only size check left by older versions of the source project.
+s = s.replace('            if (entry.size <= 0L) throw GradleException("ARM64 libgojni.so is empty")', "")
 gradle.write_text(s, encoding="utf-8")
 
 print("Unified DNS and four-ABI split build changes applied.")
