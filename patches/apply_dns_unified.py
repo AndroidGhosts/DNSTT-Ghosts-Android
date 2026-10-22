@@ -53,8 +53,8 @@ s = p.read_text(encoding="utf-8")
 s = s.replace('    private lateinit var remoteDns: com.google.android.material.textfield.TextInputEditText\n', '')
 s = s.replace('        remoteDns = f.text(R.string.f_remote_dns, p.optString("remoteDns", "8.8.8.8:53"), R.string.f_remote_dns_h)\n', '')
 s = s.replace('        out.put("remoteDns", remoteDns.str().trim())\n', '        out.remove("remoteDns")\n')
-if 'remoteDns' in s:
-    raise SystemExit("ProfileEditActivity still contains remoteDns")
+if 'remoteDns =' in s or 'optString("remoteDns"' in s or 'f_remote_dns' in s:
+    raise SystemExit("ProfileEditActivity still exposes the legacy remoteDns field")
 p.write_text(s, encoding="utf-8")
 
 p = java / "SettingsActivity.kt"
