@@ -214,14 +214,39 @@ class LogActivity : AppCompatActivity() {
     private fun category(line: String): String {
         val upper = line.uppercase(Locale.ROOT)
         return when {
-            "ERROR" in upper || "FAILED" in upper || "EXCEPTION" in upper -> "ERROR"
-            "WARN" in upper || "RETRY" in upper || "TIMEOUT" in upper -> "WARN"
-            "AUTH" in upper || "SSH" in upper || "KEY" in upper -> "AUTH"
+            "ERROR" in upper || "FAILED" in upper || "EXCEPTION" in upper || "FATAL" in upper -> "ERROR"
+            "WARN" in upper || "RETRY" in upper || "TIMEOUT" in upper || "DEGRADED" in upper -> "WARN"
+            "NETWORK_PROBE" in upper || "PROBE" in upper || "RTT=" in upper || "LATENCY" in upper -> "PROBE"
+            "SSH" in upper || "HOST KEY" in upper || "SSH-" in upper || "SSH LOGGED" in upper -> "SSH"
             "DNS" in upper || "RESOLVER" in upper || "DNSTT" in upper -> "DNS"
-            "NETWORK" in upper || "PROBE" in upper || "RTT" in upper || "ROUTE" in upper -> "NETWORK"
-            "CONNECTION" in upper || "TUNNEL" in upper || "VPN" in upper || "SESSION" in upper -> "CONNECTION"
+            "CONNECTION" in upper || "TUNNEL" in upper || "VPN" in upper || "SESSION" in upper -> "TUNNEL"
+            "AUTH" in upper || "KEY" in upper || "LOGIN" in upper -> "AUTH"
+            "NETWORK" in upper || "ROUTE" in upper || "DEVICE" in upper -> "NETWORK"
             else -> "INFO"
         }
+    }
+
+    private fun severity(line: String): String {
+        val upper = line.uppercase(Locale.ROOT)
+        return when {
+            "ERROR" in upper || "FAILED" in upper || "EXCEPTION" in upper || "FATAL" in upper -> "ERROR"
+            "WARN" in upper || "RETRY" in upper || "TIMEOUT" in upper -> "WARN"
+            else -> "INFO"
+        }
+    }
+
+    private fun sessionState(lines: List<String>): String {
+        var state = "IDLE"
+        lines.forEach { line ->
+            val upper = line.uppercase(Locale.ROOT)
+            when {
+                "TUNNEL CONNECTED" in upper || "CONNECTION STATE=CONNECTED" in upper -> state = "CONNECTED"
+                "TUNNEL DISCONNECTED" in upper || "CONNECTION STATE=DISCONNECTED" in upper ||
+                    "CONNECTION STATE=STOPPED" in upper -> state = "STANDBY"
+                "CONNECTION STATE=ERROR" in upper || "TUNNEL FAILED" in upper -> state = "FAULT"
+            }
+        }
+        return state
     }
 
     private fun renderLogs() {
@@ -232,23 +257,45 @@ class LogActivity : AppCompatActivity() {
                 (query.isEmpty() || line.lowercase(Locale.ROOT).contains(query))
         }
         val all = currentLines
-        summary.text = "BUFFER ${all.size}  •  INFO ${all.count { category(it) == "INFO" }}  •  WARN ${all.count { category(it) == "WARN" }}  •  ERROR ${all.count { category(it) == "ERROR" }}"
+        val warnCount = all.count { severity(it) == "WARN" }
+        val errorCount = all.count { severity(it) == "ERROR" }
+        val probes = all.count { category(it) == "PROBE" }
+        val dnsEvents = all.count { category(it) == "DNS" }
+        summary.text = "EVENTS ${all.size}  •  WARN ${warnCount}  •  ERROR ${errorCount}"
+        val state = sessionState(all)
+        insight.setTextColor(when (state) {
+            "CONNECTED" -> Color.rgb(92, 224, 156)
+            "FAULT" -> Color.rgb(255, 92, 106)
+            else -> muted
+        })
+        insight.text = "SESSION: ${state}  •  PROBES: ${probes}  •  DNS EVENTS: ${dnsEvents}"
         val builder = SpannableStringBuilder()
         filtered.forEachIndexed { index, line ->
             val start = builder.length
-            builder.append(line)
+            val tag = when (category(line)) {
+                "ERROR" -> "[ERR] "
+                "WARN" -> "[WRN] "
+                "PROBE" -> "[RTT] "
+                "SSH" -> "[SSH] "
+                "DNS" -> "[DNS] "
+                "TUNNEL" -> "[VPN] "
+                "NETWORK" -> "[NET] "
+                "AUTH" -> "[AUTH] "
+                else -> "[INF] "
+            }
+            builder.append(tag).append(line)
             val color = when (category(line)) {
                 "ERROR" -> Color.rgb(255, 92, 106)
                 "WARN" -> Color.rgb(255, 190, 80)
-                "AUTH" -> Color.rgb(205, 130, 255)
+                "AUTH", "SSH" -> Color.rgb(205, 130, 255)
                 "DNS" -> Color.rgb(74, 205, 255)
-                "NETWORK" -> Color.rgb(92, 224, 156)
-                "CONNECTION" -> accent
+                "NETWORK", "PROBE" -> Color.rgb(92, 224, 156)
+                "TUNNEL" -> accent
                 else -> Color.rgb(177, 198, 210)
             }
             builder.setSpan(ForegroundColorSpan(color), start, builder.length, 0)
             val timeEnd = line.indexOf("  ").takeIf { it in 1..12 } ?: -1
-            if (timeEnd > 0) builder.setSpan(ForegroundColorSpan(muted), start, start + timeEnd, 0)
+            if (timeEnd > 0) builder.setSpan(ForegroundColorSpan(muted), start + tag.length, start + tag.length + timeEnd, 0)
             builder.append(if (index == filtered.lastIndex) "" else "\n")
         }
         logText.text = if (filtered.isEmpty()) {
