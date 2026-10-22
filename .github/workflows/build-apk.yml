@@ -81,12 +81,14 @@ jobs:
           p = Path("app/src/main/res/layout/activity_main.xml")
           s = p.read_text()
           # Remove only the extra heading injected by the previous workflow patch.
-          s = s.replace('''                        <TextView
-                            android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="TUNNEL CONTROL" android:textColor="@color/text_secondary"
-                            android:textSize="10sp" android:letterSpacing="0.16" android:textStyle="bold"
-                            android:layout_marginBottom="2dp" />
-''', '')
+          import re
+          s = re.sub(
+              r'\\s*<TextView\\s+android:layout_width="wrap_content" android:layout_height="wrap_content"\\s+android:text="TUNNEL CONTROL".*?android:layout_marginBottom="2dp" />\\s*',
+              '\\n',
+              s,
+              count=1,
+              flags=re.DOTALL,
+          )
           # Restore the source layout's intended dimensions where the old patch changed them.
           s = s.replace('android:layout_width="92dp" android:layout_height="92dp"',
                         'android:layout_width="112dp" android:layout_height="112dp"')
