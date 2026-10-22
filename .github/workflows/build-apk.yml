@@ -277,20 +277,23 @@ jobs:
           if missing_strings:
               raise SystemExit("Missing string resources: " + ", ".join(missing_strings))
 
-          for kind, folder in (("color", "values"), ("drawable", "drawable"), ("mipmap", "mipmap")):
-              available = set()
-              for p in res.glob(f"{folder}*/*"):
-                  if p.suffix == ".xml":
-                      try:
-                          node = ET.parse(p).getroot()
-                          name = node.attrib.get("name")
-                          if name: available.add(name)
-                      except ET.ParseError:
-                          pass
-                  elif p.is_file():
-                      available.add(p.stem)
+          # Collect app-owned resources from values XML and drawable/mipmap file names.
+          available = {"color": set(), "drawable": set(), "mipmap": set()}
+          for p in res.glob("values*/*.xml"):
+              try:
+                  for node in ET.parse(p).getroot().iter():
+                      name = node.attrib.get("name")
+                      if node.tag == "color" and name:
+                          available["color"].add(name)
+              except ET.ParseError:
+                  pass
+          for kind in ("drawable", "mipmap"):
+              for p in res.glob(f"{kind}*/*"):
+                  if p.is_file():
+                      available[kind].add(p.stem)
+          for kind in ("color", "drawable", "mipmap"):
               refs = set(re.findall(rf"@{kind}/([A-Za-z0-9_]+)", text))
-              missing = sorted(refs - available)
+              missing = sorted(refs - available[kind])
               if missing:
                   raise SystemExit(f"Missing @{kind} resources: " + ", ".join(missing))
 
