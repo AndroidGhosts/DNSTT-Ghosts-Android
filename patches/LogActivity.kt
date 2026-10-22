@@ -305,6 +305,32 @@ class LogActivity : AppCompatActivity() {
         if (autoScroll) scroll.post { scroll.fullScroll(ScrollView.FOCUS_DOWN) }
     }
 
+    private fun showAnalysis() {
+        val lines = currentLines
+        val probes = lines.count { category(it) == "PROBE" }
+        val dnsEvents = lines.count { category(it) == "DNS" }
+        val warnings = lines.count { severity(it) == "WARN" }
+        val errors = lines.count { severity(it) == "ERROR" }
+        val state = sessionState(lines)
+        val report = "SESSION STATE      " + state +
+            "\nTOTAL EVENTS       " + lines.size +
+            "\nWARNINGS / ERRORS  " + warnings + " / " + errors +
+            "\nPROBE EVENTS       " + probes +
+            "\nDNS EVENTS         " + dnsEvents +
+            "\nSSH EVENTS         " + lines.count { category(it) == "SSH" } +
+            "\n\nComputed from local log entries only. No network scan was started."
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("GHOST // EVENT INSPECTOR")
+            .setMessage(report)
+            .setPositiveButton("COPY REPORT") { _, _ ->
+                val cm = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText("Android_Ghosts event analysis", report))
+                android.widget.Toast.makeText(this, "Analysis copied", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("CLOSE", null)
+            .show()
+    }
+
     override fun onDestroy() {
         LogBuffer.unlisten(listener)
         super.onDestroy()
@@ -314,6 +340,7 @@ class LogActivity : AppCompatActivity() {
         menu.add(0, 1, 0, "COPY").setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         menu.add(0, 2, 1, "EXPORT").setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         menu.add(0, 3, 2, "CLEAR").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(0, 4, 3, "INSPECT").setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         return true
     }
 
@@ -338,6 +365,7 @@ class LogActivity : AppCompatActivity() {
                 currentLines = emptyList()
                 renderLogs()
             }
+            4 -> showAnalysis()
             else -> return super.onOptionsItemSelected(item)
         }
         return true
