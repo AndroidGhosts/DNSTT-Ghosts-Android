@@ -71,43 +71,58 @@ jobs:
           PY
           grep -n -A12 'verifyGhostcoreArm64' app/build.gradle.kts
 
-      - name: Restore original control sizes and avoid forced compact layout
+      - name: Restore legacy home-screen dimensions
         shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import re
           p = Path("app/src/main/res/layout/activity_main.xml")
           s = p.read_text()
-          # Remove only the extra heading injected by the previous workflow patch.
-          import re
-          s = re.sub(
-              r'\\s*<TextView\\s+android:layout_width="wrap_content" android:layout_height="wrap_content"\\s+android:text="TUNNEL CONTROL".*?android:layout_marginBottom="2dp" />\\s*',
-              '\\n',
-              s,
-              count=1,
-              flags=re.DOTALL,
+
+          # Restore the dimensions from the legacy layout supplied in this conversation.
+          # Keep all existing view IDs and the current Activity's chart/Telegram controls.
+          s = s.replace(
+              'android:layout_width="92dp" android:layout_height="92dp"',
+              'android:layout_width="150dp" android:layout_height="150dp"'
           )
-          # Restore the source layout's intended dimensions where the old patch changed them.
-          s = s.replace('android:layout_width="92dp" android:layout_height="92dp"',
-                        'android:layout_width="112dp" android:layout_height="112dp"')
-          s = s.replace('android:layout_width="32dp" android:layout_height="32dp"',
-                        'android:layout_width="40dp" android:layout_height="40dp"')
-          # Keep chart/visual panels at their compact 66dp source height; do not enlarge the screen.
-          s = s.replace('android:layout_height="88dp"', 'android:layout_height="66dp"')
+          s = s.replace(
+              'android:layout_width="112dp" android:layout_height="112dp"',
+              'android:layout_width="150dp" android:layout_height="150dp"'
+          )
+          s = s.replace(
+              'android:layout_width="32dp" android:layout_height="32dp"',
+              'android:layout_width="56dp" android:layout_height="56dp"'
+          )
+          s = s.replace(
+              'android:layout_width="40dp" android:layout_height="40dp"',
+              'android:layout_width="56dp" android:layout_height="56dp"'
+          )
+
+          # Restore the old card/toolbar/FAB spacing without deleting required current views.
+          s = s.replace('android:layout_height="52dp"', 'android:layout_height="?attr/actionBarSize"')
           s = s.replace('android:layout_gravity="bottom|end" android:layout_margin="16dp"',
                         'android:layout_gravity="bottom|end" android:layout_margin="20dp"')
-          # Do not force a custom compact toolbar or oversized bottom padding; let the
-          # original layout and Android's available window dimensions determine sizing.
-          s = s.replace('android:layout_height="52dp"\\n        android:background="@color/bg" app:title="@string/app_name"\\n        app:titleTextColor="@color/accent" app:subtitle="GHOSTS NETWORK • ARM64"\\n        app:subtitleTextColor="@color/text_secondary" />',
-                        'android:layout_height="?attr/actionBarSize"\\n        android:background="@color/primary_dark"\\n        app:title="@string/app_name" />')
-          s = s.replace('android:paddingHorizontal="14dp" android:paddingTop="4dp" android:paddingBottom="88dp"',
-                        'android:paddingHorizontal="12dp" android:paddingTop="10dp" android:paddingBottom="16dp"')
+          s = s.replace('app:cardCornerRadius="16dp"', 'app:cardCornerRadius="20dp"')
+          s = s.replace('android:padding="12dp"', 'android:padding="20dp"')
+          # Remove the previously injected compact heading only if it exists.
+          s = re.sub(
+              r'\\s*<TextView\\s+android:layout_width="wrap_content" android:layout_height="wrap_content"\\s+android:text="TUNNEL CONTROL".*?android:layout_marginBottom="2dp" />\\s*',
+              '\\n', s, count=1, flags=re.DOTALL
+          )
+
+          required = ("@+id/toolbar", "@+id/telegramLink", "@+id/connectButton",
+                      "@+id/connectText", "@+id/statusText", "@+id/profileText",
+                      "@+id/statsGrid", "@+id/trafficChart", "@+id/chartSummary",
+                      "@+id/chartWindowButton", "@+id/profileList", "@+id/testButton",
+                      "@+id/fab", "@+id/emptyText")
+          missing = [view_id for view_id in required if view_id not in s]
+          if missing:
+              raise SystemExit("Layout patch stopped: required Activity view IDs missing: " + ", ".join(missing))
           p.write_text(s)
-          assert 'android:id="@+id/connectButton"' in s
-          assert 'android:id="@+id/profileList"' in s
-          print("Restored original control dimensions and removed injected compact heading.")
+          print("Legacy sizing restored; current Activity view IDs retained.")
           PY
 
       - name: Build and stage ARM64 APK
