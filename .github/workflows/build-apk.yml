@@ -108,13 +108,16 @@ jobs:
           clickable = re.compile(r'<([A-Za-z][\w.]*)\b([^>]*android:(?:clickable|onClick)="[^"]+"[^>]*)>', re.DOTALL)
           def accessible_target(m):
               tag_name, attrs = m.group(1), m.group(2)
+              self_closing = attrs.rstrip().endswith("/")
+              if self_closing:
+                  attrs = attrs.rstrip()[:-1].rstrip()
               if 'android:minHeight=' not in attrs:
                   attrs += ' android:minHeight="48dp"'
               if 'android:minWidth=' not in attrs and tag_name.split('.')[-1] in {
                   'ImageButton', 'Button', 'MaterialButton'
               }:
                   attrs += ' android:minWidth="48dp"'
-              return f'<{tag_name}{attrs}>'
+              return f'<{tag_name}{attrs}{" /" if self_closing else ""}>'
           s = clickable.sub(accessible_target, s)
 
           # Keep the title readable and prevent it from pushing controls off-screen.
@@ -122,6 +125,9 @@ jobs:
           title_pattern = re.compile(r'<([A-Za-z][\w.]*)\b([^>]*(?:Android_Ghosts[.]DNSTT|Android_Ghosts)[^>]*)>', re.DOTALL)
           def readable_title(m):
               tag_name, attrs = m.group(1), m.group(2)
+              self_closing = attrs.rstrip().endswith("/")
+              if self_closing:
+                  attrs = attrs.rstrip()[:-1].rstrip()
               if 'android:textSize=' in attrs:
                   attrs = re.sub(r'android:textSize="[^"]+"', 'android:textSize="18sp"', attrs, count=1)
               else:
@@ -130,7 +136,7 @@ jobs:
                   attrs += ' android:maxLines="1"'
               if 'android:ellipsize=' not in attrs:
                   attrs += ' android:ellipsize="end"'
-              return f'<{tag_name}{attrs}>'
+              return f'<{tag_name}{attrs}{" /" if self_closing else ""}>'
           s = title_pattern.sub(readable_title, s)
 
           required = ("@+id/toolbar", "@+id/telegramLink", "@+id/connectButton",
