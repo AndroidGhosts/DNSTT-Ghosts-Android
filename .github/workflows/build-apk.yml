@@ -146,8 +146,15 @@ jobs:
           s = p.read_text(encoding="utf-8")
           original = s
 
-          # Avoid globally shrinking every dimension and making text hard to read.
-          # Only trim unusually large spacing/dimensions; keep normal touch targets.
+          # إضافة fitsSystemWindows="true" للعنصر الجذري تلقائياً لمنع التداخل
+          root_match = re.search(r'(<[a-zA-Z0-9.]+Layout\b[^>]*)>', s)
+          if root_match:
+              root_tag = root_match.group(1)
+              if 'android:fitsSystemWindows' not in root_tag:
+                  new_root_tag = root_tag + ' android:fitsSystemWindows="true"'
+                  s = s.replace(root_tag, new_root_tag, 1)
+
+          # تقليص الأبعاد الكبيرة بشكل بسيط
           def compact_large_dp(m):
               value = float(m.group(1))
               if value < 40:
@@ -156,7 +163,7 @@ jobs:
 
           s = re.sub(r'(?<![A-Za-z0-9_.-])(\d+(?:\.\d+)?)dp\b', compact_large_dp, s)
 
-          # Ensure the connect control remains a usable size, not a tiny icon.
+          # ضبط زر الاتصال الرئيسي
           pattern = re.compile(r'<[A-Za-z][^>]*@\+id/connectButton[^>]*>', re.DOTALL)
           match = pattern.search(s)
           if not match:
@@ -166,7 +173,7 @@ jobs:
           tag = re.sub(r'android:layout_height="[^"]+"', 'android:layout_height="116dp"', tag, count=1)
           s = s[:match.start()] + tag + s[match.end():]
 
-          # Make all clickable controls easier to tap; do not reduce text sizes.
+          # ضمان سهولة الضغط على العناصر القابلة للنقر
           clickable = re.compile(r'<([A-Za-z][\w.]*)\b([^>]*android:(?:clickable|onClick)="[^"]+"[^>]*)>', re.DOTALL)
           def accessible_target(m):
               tag_name, attrs = m.group(1), m.group(2)
@@ -182,8 +189,7 @@ jobs:
               return f'<{tag_name}{attrs}{" /" if self_closing else ""}>'
           s = clickable.sub(accessible_target, s)
 
-          # Keep the title readable and prevent it from pushing controls off-screen.
-          # Apply only when the literal app title is declared in this layout.
+          # الحفاظ على وضوح العنوان
           title_pattern = re.compile(r'<([A-Za-z][\w.]*)\b([^>]*(?:Android_Ghosts[.]DNSTT|Android_Ghosts)[^>]*)>', re.DOTALL)
           def readable_title(m):
               tag_name, attrs = m.group(1), m.group(2)
@@ -213,7 +219,7 @@ jobs:
               raise SystemExit("Adaptive layout patch made no changes")
 
           p.write_text(s, encoding="utf-8")
-          print("Adaptive layout applied: large dimensions trimmed modestly, readable text preserved, clickable targets enlarged.")
+          print("Adaptive layout applied: large dimensions trimmed modestly, readable text preserved, clickable targets enlarged, fitsSystemWindows added.")
           PY
 
       - name: Build and stage ARM64 APK
