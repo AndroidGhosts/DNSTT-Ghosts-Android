@@ -107,7 +107,7 @@ class LogActivity : AppCompatActivity() {
             setHintTextColor(muted)
             setTextColor(Color.WHITE)
             textSize = 13f
-            singleLine = true
+            isSingleLine = true
             setPadding(dp(12), dp(4), dp(12), dp(4))
             setBackgroundColor(Color.rgb(15, 32, 43))
         }
@@ -322,7 +322,7 @@ class LogActivity : AppCompatActivity() {
             1 -> {
                 val cm = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                 cm.setPrimaryClip(ClipData.newPlainText("Android_Ghosts diagnostics", logText.text))
-                toast(getString(R.string.copied))
+                android.widget.Toast.makeText(this, getString(R.string.copied), android.widget.Toast.LENGTH_SHORT).show()
             }
             2 -> {
                 val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
