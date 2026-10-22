@@ -252,6 +252,36 @@ jobs:
           print(f"Professional native layout XML validated; {len(required)} required view IDs preserved.")
           PY
 
+      - name: Complete Arabic home-screen localization
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          p = Path("app/src/main/res/values-ar/strings.xml")
+          if not p.exists():
+              raise SystemExit("Arabic resources file not found: values-ar/strings.xml")
+          tree = ET.parse(p)
+          root = tree.getroot()
+          additions = {
+              "brand_subtitle": "نفق DNSTT • SSH • SOCKS5 • HTTP",
+              "brand_note": "إعدادات نفق آمن · Android_Ghosts",
+          }
+          existing = {node.attrib.get("name") for node in root.findall("string")}
+          changed = False
+          for name, value in additions.items():
+              if name not in existing:
+                  node = ET.SubElement(root, "string", {"name": name})
+                  node.text = value
+                  changed = True
+          if changed:
+              tree.write(p, encoding="utf-8", xml_declaration=True)
+          print("Arabic brand labels verified; missing translations were added without replacing existing strings.")
+          PY
+
       - name: Preflight Android resources and custom views
         shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
