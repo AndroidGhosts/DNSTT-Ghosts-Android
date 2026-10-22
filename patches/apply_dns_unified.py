@@ -41,8 +41,9 @@ s = s.replace('''    fun vpnDns(ctx: Context) = p(ctx).getString("vpn_dns", "8.8
             ?: throw IllegalArgumentException("Invalid VPN DNS endpoint")
     }
 ''')
-s = s.replace('    // Empty means: keep the profile\\'s remoteDns (which defaults to resolver:53).\n    fun tunnelDns(ctx: Context) = p(ctx).getString("tunnel_dns", "")!!\n', '')
-if 'fun vpnDnsEndpoint(ctx: Context)' not in s or 'fun vpnDns(ctx: Context)' in s:
+s = s.replace("""    // Empty means: keep the profile's remoteDns (which defaults to resolver:53).
+    fun tunnelDns(ctx: Context) = p(ctx).getString("tunnel_dns", "")!!
+""", "")
     raise SystemExit("Profiles.kt unified DNS patch failed")
 p.write_text(s, encoding="utf-8")
 
@@ -177,8 +178,8 @@ if 'splits {' not in s:
     }
 
 ''' + marker, 1)
-s = s.replace('val entry = zip.getEntry("jni/arm64-v8a/libgojni.so")\\n                ?: throw GradleException("ghostcore.aar does not include jni/arm64-v8a/libgojni.so")',
-'''val requiredAbis = listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+s = s.replace("""val entry = zip.getEntry("jni/arm64-v8a/libgojni.so")
+                ?: throw GradleException("ghostcore.aar does not include jni/arm64-v8a/libgojni.so")""",
             requiredAbis.forEach { abi ->
                 val entry = zip.getEntry("jni/$abi/libgojni.so")
                     ?: throw GradleException("ghostcore.aar does not include jni/$abi/libgojni.so")
