@@ -225,6 +225,33 @@ jobs:
           print("Successfully applied fitsSystemWindows to all layout screens and adaptive layout to main activity.")
           PY
 
+      - name: Apply Android_Ghosts professional native home screen
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set -euo pipefail
+          test -s "${GITHUB_WORKSPACE}/patches/activity_main.xml"
+          test -d "app/src/main/res/layout"
+          cp "${GITHUB_WORKSPACE}/patches/activity_main.xml" "app/src/main/res/layout/activity_main.xml"
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          p = Path("app/src/main/res/layout/activity_main.xml")
+          root = ET.parse(p).getroot()
+          ids = {node.attrib.get("{http://schemas.android.com/apk/res/android}id", "") for node in root.iter()}
+          required = {
+              "@+id/toolbar", "@+id/telegramLink", "@+id/connectButton",
+              "@+id/connectText", "@+id/statusText", "@+id/profileText",
+              "@+id/statsGrid", "@+id/trafficChart", "@+id/chartSummary",
+              "@+id/chartWindowButton", "@+id/profileList", "@+id/testButton",
+              "@+id/fab", "@+id/emptyText"
+          }
+          missing = sorted(required - ids)
+          if missing:
+              raise SystemExit("Missing Activity view IDs: " + ", ".join(missing))
+          print(f"Professional native layout XML validated; {len(required)} required view IDs preserved.")
+          PY
+
       - name: Build and stage ARM64 APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: ./build-debug-apk.sh
