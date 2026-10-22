@@ -275,11 +275,11 @@ jobs:
           if "fun android.content.Context.toast(" not in s:
               s += """
 
-          private fun android.content.Context.toast(message: CharSequence) {
+          fun android.content.Context.toast(message: CharSequence) {
               android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show()
           }
 
-          private fun android.content.Context.clipboard(): android.content.ClipboardManager =
+          fun android.content.Context.clipboard(): android.content.ClipboardManager =
               getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
           """
           # Redact SSH usernames emitted in prose as well as key=value credential fields.
