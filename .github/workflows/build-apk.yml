@@ -412,9 +412,10 @@ jobs:
           set -euo pipefail
           ./gradlew --no-daemon --stacktrace verifyGhostcoreArm64 assembleDebug
           mkdir -p dist
-          find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -size +0c -print -exec cp {} dist/ \;
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          cp app/build/outputs/apk/debug/app-debug.apk dist/app-arm64-v8a-debug.apk
           test -s dist/app-arm64-v8a-debug.apk
-          ls -lh dist/*.apk
+          ls -lh dist/app-arm64-v8a-debug.apk
 
       - name: Verify ARM64 APK artifact
         shell: bash
