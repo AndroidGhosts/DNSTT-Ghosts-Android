@@ -71,6 +71,66 @@ jobs:
           PY
           grep -n -A12 'verifyGhostcoreArm64' app/build.gradle.kts
 
+      - name: Compact and polish Android home screen
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("app/src/main/res/layout/activity_main.xml")
+          s = p.read_text()
+          replacements = {
+              'android:paddingHorizontal="12dp" android:paddingTop="10dp" android:paddingBottom="16dp"':
+                  'android:paddingHorizontal="10dp" android:paddingTop="6dp" android:paddingBottom="12dp"',
+              'android:paddingHorizontal="16dp"\n                        android:paddingVertical="14dp"':
+                  'android:paddingHorizontal="14dp"\n                        android:paddingVertical="10dp"',
+              'android:textSize="22sp" android:textStyle="bold" android:letterSpacing="0.02"':
+                  'android:textSize="19sp" android:textStyle="bold" android:letterSpacing="0.02"',
+              'android:layout_marginTop="3dp" android:text="@string/brand_subtitle"':
+                  'android:layout_marginTop="2dp" android:text="@string/brand_subtitle"',
+              'android:layout_marginTop="5dp" android:text="@string/brand_note"':
+                  'android:layout_marginTop="3dp" android:text="@string/brand_note"',
+              'android:layout_marginTop="10dp" android:paddingVertical="5dp"':
+                  'android:layout_marginTop="6dp" android:paddingVertical="4dp"',
+              'app:cardElevation="3dp" app:cardCornerRadius="18dp"':
+                  'app:cardElevation="2dp" app:cardCornerRadius="16dp"',
+              'app:cardCornerRadius="18dp" app:cardElevation="3dp"':
+                  'app:cardCornerRadius="16dp" app:cardElevation="2dp"',
+              'android:paddingHorizontal="12dp" android:paddingTop="14dp" android:paddingBottom="12dp"':
+                  'android:paddingHorizontal="10dp" android:paddingTop="10dp" android:paddingBottom="9dp"',
+              'android:layout_width="112dp" android:layout_height="112dp"':
+                  'android:layout_width="88dp" android:layout_height="88dp"',
+              'android:layout_width="40dp" android:layout_height="40dp"':
+                  'android:layout_width="32dp" android:layout_height="32dp"',
+              'android:layout_marginTop="3dp" android:text="@string/connect"':
+                  'android:layout_marginTop="2dp" android:text="@string/connect"',
+              'android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="14sp"':
+                  'android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="12sp"',
+              'android:layout_marginTop="10dp" android:gravity="center"\n                            android:text="@string/status_stopped" android:textSize="17sp"':
+                  'android:layout_marginTop="7dp" android:gravity="center"\n                            android:text="@string/status_stopped" android:textSize="15sp"',
+              'android:layout_marginTop="8dp" android:orientation="vertical"':
+                  'android:layout_marginTop="5dp" android:orientation="vertical"',
+              'android:layout_width="match_parent" android:layout_height="88dp"':
+                  'android:layout_width="match_parent" android:layout_height="62dp"',
+              'android:layout_marginTop="6dp" android:gravity="center"\n                                android:textColor="@color/text_secondary" android:textSize="12sp"':
+                  'android:layout_marginTop="4dp" android:gravity="center"\n                                android:textColor="@color/text_secondary" android:textSize="11sp"',
+              'android:layout_marginTop="12dp" android:layout_marginBottom="6dp"':
+                  'android:layout_marginTop="9dp" android:layout_marginBottom="4dp"',
+              'android:text="@string/profiles" android:textSize="16sp" android:textStyle="bold"':
+                  'android:text="@string/profiles" android:textSize="15sp" android:textStyle="bold"',
+              'android:padding="16dp" android:text="@string/no_profiles"':
+                  'android:padding="12dp" android:text="@string/no_profiles"',
+              'android:layout_gravity="bottom|end" android:layout_margin="20dp"':
+                  'android:layout_gravity="bottom|end" android:layout_margin="14dp"',
+          }
+          for old, new in replacements.items():
+              s = s.replace(old, new)
+          p.write_text(s)
+          print("Applied compact responsive home screen spacing and control sizing.")
+          PY
+          grep -n -E 'connectButton|statusText|trafficChart|brand_subtitle|statsGrid' app/src/main/res/layout/activity_main.xml
+
       - name: Build and stage ARM64 APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: ./build-debug-apk.sh
