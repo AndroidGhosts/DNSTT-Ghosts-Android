@@ -165,9 +165,9 @@ gradle = root / "app/build.gradle.kts"
 s = gradle.read_text(encoding="utf-8")
 s = re.sub(r'ndk \{ abiFilters \+= setOf\([^)]*\) \}', 'ndk { abiFilters += setOf("arm64-v8a") }', s)
 # This build targets the user's Samsung Galaxy A56 (ARM64 only).
-s = re.sub(r'    splits \\{.*?    \\}\\n\\n', '', s, flags=re.S)
+s = re.sub(r'    splits \{.*?    \}\n\n', '', s, flags=re.S)
 s = re.sub(
-    r'            val requiredAbis = listOf\\("armeabi-v7a", "arm64-v8a", "x86", "x86_64"\\).*?            \\}',
+    r'            val requiredAbis = listOf\("armeabi-v7a", "arm64-v8a", "x86", "x86_64"\).*?            \}',
     '''            val entry = zip.getEntry("jni/arm64-v8a/libgojni.so")
                 ?: throw GradleException("ghostcore.aar does not include jni/arm64-v8a/libgojni.so")
             if (entry.size <= 0L) throw GradleException("ARM64 libgojni.so is empty")
