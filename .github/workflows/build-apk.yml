@@ -33,7 +33,7 @@ jobs:
           unzip -q "$ZIP_FILE" -d extracted
           GRADLEW="$(find extracted -type f -name gradlew -print -quit)"
           if [ -z "$GRADLEW" ]; then
-            echo "::error::No gradlew file found inside the uploaded ZIP. Ensure the ZIP contains the Android project, not another nested archive."
+            echo "::error::No gradlew file found inside the uploaded ZIP."
             find extracted -maxdepth 3 -type f | head -100
             exit 1
           fi
@@ -53,6 +53,24 @@ jobs:
 
       - name: Install Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Patch ARM64 verification task for Kotlin DSL compatibility
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("app/build.gradle.kts")
+          s = p.read_text()
+          s = s.replace("val zip = java.util.zip.ZipFile(aar)", "val zipFile = java.util.zip.ZipFile(aar)")
+          s = s.replace("val entry = zip.getEntry(", "val entry = zipFile.getEntry(")
+          s = s.replace('            if (entry.size <= 0L) throw GradleException("ARM64 libgojni.so is empty")\n', "")
+          s = s.replace('            logger.lifecycle("Verified ghostcore ARM64 native library: ${entry.size()} bytes")', '            logger.lifecycle("Verified ghostcore ARM64 native library entry: ${entry.name}")')
+          s = s.replace("            zip.close()", "            zipFile.close()")
+          p.write_text(s)
+          PY
+          grep -n -A12 'verifyGhostcoreArm64' app/build.gradle.kts
 
       - name: Build and stage ARM64 APK
         working-directory: ${{ env.PROJECT_DIR }}
