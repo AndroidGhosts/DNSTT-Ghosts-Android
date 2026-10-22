@@ -44,7 +44,7 @@ s = s.replace('''    fun vpnDns(ctx: Context) = p(ctx).getString("vpn_dns", "8.8
 s = s.replace("""    // Empty means: keep the profile's remoteDns (which defaults to resolver:53).
     fun tunnelDns(ctx: Context) = p(ctx).getString("tunnel_dns", "")!!
 """, "")
-    raise SystemExit("Profiles.kt unified DNS patch failed")
+raise SystemExit("Profiles.kt unified DNS patch failed")
 p.write_text(s, encoding="utf-8")
 
 p = java / "ProfileEditActivity.kt"
