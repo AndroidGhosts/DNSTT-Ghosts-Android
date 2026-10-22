@@ -252,6 +252,31 @@ jobs:
           print(f"Professional native layout XML validated; {len(required)} required view IDs preserved.")
           PY
 
+      - name: Apply cyber terminal diagnostics screen and redact credentials
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set -euo pipefail
+          cp "${GITHUB_WORKSPACE}/patches/LogActivity.kt" app/src/main/java/com/androidghosts/dnsttghosts/LogActivity.kt
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("app/src/main/java/com/androidghosts/dnsttghosts/App.kt")
+          s = p.read_text(encoding="utf-8")
+          old = '        val clean = line.trim().ifEmpty { return }'
+          new = '''        val clean = line.trim()
+              .replace(Regex("(?i)(sshUser|username|password|sshPass|sshKeyPass|privateKey|token)=([^\\\\s]+)")) {
+                  "${it.groupValues[1]}=[REDACTED]"
+              }
+              .ifEmpty { return }'''
+          if old in s:
+              s = s.replace(old, new, 1)
+          elif 'private fun redact' not in s and 'val clean = line.trim()' not in s:
+              raise SystemExit("Could not safely locate LogBuffer input sanitation point in App.kt")
+          p.write_text(s, encoding="utf-8")
+          print("Diagnostics screen installed; credential fields are redacted before entering the log buffer.")
+          PY
+          grep -n -A5 'val clean = line.trim' app/src/main/java/com/androidghosts/dnsttghosts/App.kt
+
       - name: Complete Arabic home-screen localization
         shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
