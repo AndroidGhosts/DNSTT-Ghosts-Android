@@ -252,6 +252,67 @@ jobs:
           print(f"Professional native layout XML validated; {len(required)} required view IDs preserved.")
           PY
 
+      - name: Preflight Android resources and custom views
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          res = Path("app/src/main/res")
+          layout = res / "layout/activity_main.xml"
+          root = ET.parse(layout).getroot()
+          strings = set()
+          for p in res.glob("values*/strings.xml"):
+              try:
+                  strings.update(n.attrib["name"] for n in ET.parse(p).getroot().findall("string"))
+              except (ET.ParseError, KeyError) as e:
+                  raise SystemExit(f"Invalid string resource file {p}: {e}")
+
+          text = layout.read_text(encoding="utf-8")
+          missing_strings = sorted(set(re.findall(r"@string/([A-Za-z0-9_]+)", text)) - strings)
+          if missing_strings:
+              raise SystemExit("Missing string resources: " + ", ".join(missing_strings))
+
+          for kind, folder in (("color", "values"), ("drawable", "drawable"), ("mipmap", "mipmap")):
+              available = set()
+              for p in res.glob(f"{folder}*/*"):
+                  if p.suffix == ".xml":
+                      try:
+                          node = ET.parse(p).getroot()
+                          name = node.attrib.get("name")
+                          if name: available.add(name)
+                      except ET.ParseError:
+                          pass
+                  elif p.is_file():
+                      available.add(p.stem)
+              refs = set(re.findall(rf"@{kind}/([A-Za-z0-9_]+)", text))
+              missing = sorted(refs - available)
+              if missing:
+                  raise SystemExit(f"Missing @{kind} resources: " + ", ".join(missing))
+
+          custom_views = [n.tag for n in root.iter() if "." in n.tag and not n.tag.startswith(("androidx.", "com.google.android.material."))]
+          for view in custom_views:
+              if view.startswith("com.androidghosts.dnsttghosts."):
+                  class_name = view.rsplit(".", 1)[-1]
+                  source_roots = [Path("app/src/main/java"), Path("app/src/main/kotlin")]
+                  if not any(r.exists() and any(p.name == f"{class_name}.kt" or p.name == f"{class_name}.java" for p in r.rglob("*")) for r in source_roots):
+                      raise SystemExit(f"Custom view class source not found: {view}")
+
+          required = {"toolbar", "telegramLink", "connectButton", "connectText", "statusText",
+                      "profileText", "statsGrid", "trafficChart", "chartSummary",
+                      "chartWindowButton", "profileList", "testButton", "fab", "emptyText"}
+          ids = {v.attrib.get("{http://schemas.android.com/apk/res/android}id", "").split("/")[-1]
+                 for v in root.iter()}
+          missing_ids = sorted(required - ids)
+          if missing_ids:
+              raise SystemExit("Missing Activity view IDs: " + ", ".join(missing_ids))
+          print(f"Preflight passed: XML, {len(strings)} localized string names, custom view sources, and {len(required)} Activity IDs.")
+          PY
+
       - name: Build and stage ARM64 APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: ./build-debug-apk.sh
