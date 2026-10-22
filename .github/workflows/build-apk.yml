@@ -1,4 +1,4 @@
-name: Build DNSTT Ghosts APK
+name: Build DNSTT Ghosts ARM64 APK
 
 on:
   push:
@@ -36,7 +36,7 @@ jobs:
           fi
           PROJECT_DIR="$(dirname "$GRADLEW")"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-          chmod +x "$GRADLEW"
+          chmod +x "$GRADLEW" "$PROJECT_DIR/build-debug-apk.sh"
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -51,15 +51,27 @@ jobs:
       - name: Install Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Build debug APK
+      - name: Build and stage ARM64 APK
         working-directory: ${{ env.PROJECT_DIR }}
-        run: ./gradlew --no-daemon --stacktrace assembleDebug
+        run: ./build-debug-apk.sh
 
-      - name: Upload APK artifact
+      - name: Verify APK artifact
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set -euo pipefail
+          APK="dist/DNSTT-Ghosts-arm64-v8a-debug.apk"
+          test -s "$APK"
+          echo "APK ready: $APK"
+          ls -lh "$APK"
+          if command -v aapt >/dev/null 2>&1; then
+            aapt dump badging "$APK" | grep -E '^(package:|native-code:)'
+          fi
+
+      - name: Upload APK only (source ZIP is a separate file)
         uses: actions/upload-artifact@v4
         with:
-          name: dnstt-ghosts-debug-apk
-          path: |
-            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+          name: DNSTT-Ghosts-arm64-v8a-APK
+          path: ${{ env.PROJECT_DIR }}/dist/DNSTT-Ghosts-arm64-v8a-debug.apk
           if-no-files-found: error
           retention-days: 14
