@@ -94,7 +94,8 @@ jobs:
                         'android:layout_width="112dp" android:layout_height="112dp"')
           s = s.replace('android:layout_width="32dp" android:layout_height="32dp"',
                         'android:layout_width="40dp" android:layout_height="40dp"')
-          s = s.replace('android:layout_height="66dp"', 'android:layout_height="88dp"')
+          # Keep chart/visual panels at their compact 66dp source height; do not enlarge the screen.
+          s = s.replace('android:layout_height="88dp"', 'android:layout_height="66dp"')
           s = s.replace('android:layout_gravity="bottom|end" android:layout_margin="16dp"',
                         'android:layout_gravity="bottom|end" android:layout_margin="20dp"')
           # Do not force a custom compact toolbar or oversized bottom padding; let the
