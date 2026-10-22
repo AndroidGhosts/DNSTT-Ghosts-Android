@@ -49,7 +49,7 @@
                         <TextView
                             android:id="@+id/telegramLink"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:layout_marginTop="12dp" android:paddingHorizontal="12dp" android:paddingVertical="9dp"
+                            android:layout_marginTop="12dp" android:minHeight="48dp" android:paddingHorizontal="12dp" android:paddingVertical="9dp"
                             android:background="@drawable/bg_connect" android:text="@string/brand_telegram" android:textColor="@color/accent"
                             android:textSize="12sp" android:textStyle="bold"
                             android:clickable="true" android:focusable="true"
@@ -81,7 +81,8 @@
 
                                 <ImageView
                                     android:layout_width="44dp" android:layout_height="44dp"
-                                    android:src="@drawable/ic_ghost" />
+                                    android:src="@drawable/ic_ghost" android:contentDescription="@string/app_name"
+                                    android:importantForAccessibility="no" />
 
                                 <TextView
                                     android:id="@+id/connectText"
@@ -116,7 +117,7 @@
                                 android:id="@+id/chartWindowButton"
                                 style="@style/Widget.Material3.Button.TextButton"
                                 android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                android:minHeight="36dp" android:paddingHorizontal="8dp"
+                                android:minHeight="48dp" android:paddingHorizontal="8dp"
                                 android:text="@string/chart_session" />
                             <com.androidghosts.dnsttghosts.TrafficChartView
                                 android:id="@+id/trafficChart"
@@ -142,7 +143,7 @@
                             android:id="@+id/testButton"
                             style="@style/Widget.Material3.Button.TonalButton"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp" android:minHeight="36dp" android:text="@string/test_latency" />
+                            android:layout_marginTop="4dp" android:minHeight="48dp" android:text="@string/test_latency" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
