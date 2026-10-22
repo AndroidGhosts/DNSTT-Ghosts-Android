@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Locate and extract uploaded source ZIP
         shell: bash
@@ -42,7 +42,7 @@ jobs:
           chmod +x "$GRADLEW" "$PROJECT_DIR/build-debug-apk.sh"
 
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -66,6 +66,7 @@ jobs:
           if "import java.util.zip.ZipFile" not in s:
               s = "import java.util.zip.ZipFile\n" + s
           s = s.replace("java.util.zip.ZipFile(aar)", "ZipFile(aar)")
+          s = s.replace("entry.size()", "entry.size")
           p.write_text(s)
           PY
           grep -n -A12 'verifyGhostcoreArm64' app/build.gradle.kts
