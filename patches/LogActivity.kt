@@ -35,7 +35,7 @@ class LogActivity : AppCompatActivity() {
     private lateinit var scroll: ScrollView
     private lateinit var search: EditText
     private lateinit var summary: TextView
-    private lateinit var insight: TextView // تم تعريف المتغير هنا لمنع خطأ التجميع
+    private lateinit var sessionInsight: TextView // تم تعريف المتغير هنا لمنع خطأ التجميع
     private lateinit var filterBar: LinearLayout
     private var selectedFilter = "ALL"
     private var live = true
@@ -104,10 +104,10 @@ class LogActivity : AppCompatActivity() {
         val summaryParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(7) }
         top.addView(summary, summaryParams)
 
-        // إنشاء وإضافة عنصر insight للواجهة لتجنب خطأ Unresolved reference
-        insight = label("SESSION: IDLE  •  PROBES: 0  •  DNS EVENTS: 0", 10f, muted)
-        val insightParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) }
-        top.addView(insight, insightParams)
+        // إنشاء وإضافة عنصر sessionInsight للواجهة لتجنب خطأ Unresolved reference
+        sessionInsight = label("SESSION: IDLE  •  PROBES: 0  •  DNS EVENTS: 0", 10f, muted)
+        val sessionInsightParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) }
+        top.addView(sessionInsight, sessionInsightParams)
 
         root.addView(top)
 
@@ -145,7 +145,7 @@ class LogActivity : AppCompatActivity() {
             setTextIsSelectable(true)
             setLineSpacing(dp(3).toFloat(), 1.0f)
         }
-        scroll.addView(logText, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(logText, android.widget.FrameLayout.LayoutParams(-1, -2))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
 
         val footer = LinearLayout(this).apply {
@@ -272,12 +272,12 @@ class LogActivity : AppCompatActivity() {
         val dnsEvents = all.count { category(it) == "DNS" }
         summary.text = "EVENTS ${all.size}  •  WARN ${warnCount}  •  ERROR ${errorCount}"
         val state = sessionState(all)
-        insight.setTextColor(when (state) {
+        sessionInsight.setTextColor(when (state) {
             "CONNECTED" -> Color.rgb(92, 224, 156)
             "FAULT" -> Color.rgb(255, 92, 106)
             else -> muted
         })
-        insight.text = "SESSION: ${state}  •  PROBES: ${probes}  •  DNS EVENTS: ${dnsEvents}"
+        sessionInsight.text = "SESSION: ${state}  •  PROBES: ${probes}  •  DNS EVENTS: ${dnsEvents}"
         val builder = SpannableStringBuilder()
         filtered.forEachIndexed { index, line ->
             val start = builder.length
