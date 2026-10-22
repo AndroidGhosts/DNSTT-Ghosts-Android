@@ -163,32 +163,18 @@ for rel, values in updates.items():
 # Configure split APKs for each ABI plus a universal APK.
 gradle = root / "app/build.gradle.kts"
 s = gradle.read_text(encoding="utf-8")
-s = s.replace('ndk { abiFilters += setOf("arm64-v8a") }',
-              'ndk { abiFilters += setOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64") }')
-if 'splits {' not in s:
-    marker = '    buildTypes {'
-    if marker not in s:
-        raise SystemExit("Could not find buildTypes block in app/build.gradle.kts")
-    s = s.replace(marker, '''    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
-            isUniversalApk = true
-        }
-    }
-
-''' + marker, 1)
-s = s.replace("""            val entry = zip.getEntry("jni/arm64-v8a/libgojni.so")
-                ?: throw GradleException("ghostcore.aar does not include jni/arm64-v8a/libgojni.so")""",
-'''            val requiredAbis = listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
-            requiredAbis.forEach { abi ->
-                val entry = zip.getEntry("jni/$abi/libgojni.so")
-                    ?: throw GradleException("ghostcore.aar does not include jni/$abi/libgojni.so")
-                if (entry.size <= 0L) throw GradleException("Empty native library for $abi")
-            }''')
-# Remove the stale ARM64-only size check left by older versions of the source project.
-s = s.replace('            if (entry.size <= 0L) throw GradleException("ARM64 libgojni.so is empty")', "")
+s = re.sub(r'ndk \{ abiFilters \+= setOf\([^)]*\) \}', 'ndk { abiFilters += setOf("arm64-v8a") }', s)
+# This build targets the user's Samsung Galaxy A56 (ARM64 only).
+s = re.sub(r'    splits \\{.*?    \\}\\n\\n', '', s, flags=re.S)
+s = re.sub(
+    r'            val requiredAbis = listOf\\("armeabi-v7a", "arm64-v8a", "x86", "x86_64"\\).*?            \\}',
+    '''            val entry = zip.getEntry("jni/arm64-v8a/libgojni.so")
+                ?: throw GradleException("ghostcore.aar does not include jni/arm64-v8a/libgojni.so")
+            if (entry.size <= 0L) throw GradleException("ARM64 libgojni.so is empty")
+            logger.lifecycle("Verified ghostcore ARM64 native library: ${entry.size} bytes")''',
+    s,
+    flags=re.S,
+)
 gradle.write_text(s, encoding="utf-8")
 
 print("Unified DNS and four-ABI split build changes applied.")
