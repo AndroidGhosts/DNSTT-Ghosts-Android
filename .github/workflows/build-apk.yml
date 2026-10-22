@@ -71,7 +71,7 @@ jobs:
           PY
           grep -n -A12 'verifyGhostcoreArm64' app/build.gradle.kts
 
-      - name: Compact and polish Android home screen
+      - name: Apply professional cyber-neon home screen
         shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
@@ -80,56 +80,65 @@ jobs:
           from pathlib import Path
           p = Path("app/src/main/res/layout/activity_main.xml")
           s = p.read_text()
-          replacements = {
-              'android:paddingHorizontal="12dp" android:paddingTop="10dp" android:paddingBottom="16dp"':
-                  'android:paddingHorizontal="10dp" android:paddingTop="6dp" android:paddingBottom="12dp"',
-              'android:paddingHorizontal="16dp"\n                        android:paddingVertical="14dp"':
-                  'android:paddingHorizontal="14dp"\n                        android:paddingVertical="10dp"',
-              'android:textSize="22sp" android:textStyle="bold" android:letterSpacing="0.02"':
-                  'android:textSize="19sp" android:textStyle="bold" android:letterSpacing="0.02"',
-              'android:layout_marginTop="3dp" android:text="@string/brand_subtitle"':
-                  'android:layout_marginTop="2dp" android:text="@string/brand_subtitle"',
-              'android:layout_marginTop="5dp" android:text="@string/brand_note"':
-                  'android:layout_marginTop="3dp" android:text="@string/brand_note"',
-              'android:layout_marginTop="10dp" android:paddingVertical="5dp"':
-                  'android:layout_marginTop="6dp" android:paddingVertical="4dp"',
-              'app:cardElevation="3dp" app:cardCornerRadius="18dp"':
-                  'app:cardElevation="2dp" app:cardCornerRadius="16dp"',
-              'app:cardCornerRadius="18dp" app:cardElevation="3dp"':
-                  'app:cardCornerRadius="16dp" app:cardElevation="2dp"',
-              'android:paddingHorizontal="12dp" android:paddingTop="14dp" android:paddingBottom="12dp"':
-                  'android:paddingHorizontal="10dp" android:paddingTop="10dp" android:paddingBottom="9dp"',
-              'android:layout_width="112dp" android:layout_height="112dp"':
-                  'android:layout_width="88dp" android:layout_height="88dp"',
-              'android:layout_width="40dp" android:layout_height="40dp"':
-                  'android:layout_width="32dp" android:layout_height="32dp"',
-              'android:layout_marginTop="3dp" android:text="@string/connect"':
-                  'android:layout_marginTop="2dp" android:text="@string/connect"',
-              'android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="14sp"':
-                  'android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="12sp"',
-              'android:layout_marginTop="10dp" android:gravity="center"\n                            android:text="@string/status_stopped" android:textSize="17sp"':
-                  'android:layout_marginTop="7dp" android:gravity="center"\n                            android:text="@string/status_stopped" android:textSize="15sp"',
-              'android:layout_marginTop="8dp" android:orientation="vertical"':
-                  'android:layout_marginTop="5dp" android:orientation="vertical"',
-              'android:layout_width="match_parent" android:layout_height="88dp"':
-                  'android:layout_width="match_parent" android:layout_height="62dp"',
-              'android:layout_marginTop="6dp" android:gravity="center"\n                                android:textColor="@color/text_secondary" android:textSize="12sp"':
-                  'android:layout_marginTop="4dp" android:gravity="center"\n                                android:textColor="@color/text_secondary" android:textSize="11sp"',
-              'android:layout_marginTop="12dp" android:layout_marginBottom="6dp"':
-                  'android:layout_marginTop="9dp" android:layout_marginBottom="4dp"',
-              'android:text="@string/profiles" android:textSize="16sp" android:textStyle="bold"':
-                  'android:text="@string/profiles" android:textSize="15sp" android:textStyle="bold"',
-              'android:padding="16dp" android:text="@string/no_profiles"':
-                  'android:padding="12dp" android:text="@string/no_profiles"',
-              'android:layout_gravity="bottom|end" android:layout_margin="20dp"':
-                  'android:layout_gravity="bottom|end" android:layout_margin="14dp"',
-          }
-          for old, new in replacements.items():
-              s = s.replace(old, new)
+          replacements = [
+              ('android:layout_width="match_parent" android:layout_height="match_parent"\n    android:orientation="vertical">',
+               'android:layout_width="match_parent" android:layout_height="match_parent"\n    android:orientation="vertical" android:background="@color/bg">'),
+              ('android:layout_width="match_parent" android:layout_height="?attr/actionBarSize"\n        android:background="@color/primary_dark"\n        app:title="@string/app_name" />',
+               'android:layout_width="match_parent" android:layout_height="52dp"\n        android:background="@color/bg" app:title="@string/app_name"\n        app:titleTextColor="@color/accent" app:subtitle="GHOSTS NETWORK • ARM64"\n        app:subtitleTextColor="@color/text_secondary" />'),
+              ('android:paddingHorizontal="12dp" android:paddingTop="10dp" android:paddingBottom="16dp"',
+               'android:paddingHorizontal="14dp" android:paddingTop="4dp" android:paddingBottom="88dp"'),
+              ('app:cardElevation="3dp" app:cardCornerRadius="18dp"',
+               'app:cardElevation="0dp" app:cardCornerRadius="18dp"'),
+              ('android:paddingHorizontal="16dp"\n                        android:paddingVertical="14dp"',
+               'android:paddingHorizontal="16dp"\n                        android:paddingVertical="12dp"'),
+              ('android:textSize="22sp" android:textStyle="bold" android:letterSpacing="0.02"',
+               'android:textSize="21sp" android:textStyle="bold" android:letterSpacing="0.01"'),
+              ('android:layout_width="112dp" android:layout_height="112dp"',
+               'android:layout_width="92dp" android:layout_height="92dp"'),
+              ('android:layout_width="40dp" android:layout_height="40dp"',
+               'android:layout_width="32dp" android:layout_height="32dp"'),
+              ('android:paddingHorizontal="12dp" android:paddingTop="14dp" android:paddingBottom="12dp"',
+               'android:paddingHorizontal="14dp" android:paddingTop="12dp" android:paddingBottom="10dp"'),
+              ('android:layout_height="88dp"\n                                android:layout_marginTop="4dp"',
+               'android:layout_height="66dp"\n                                android:layout_marginTop="3dp"'),
+              ('android:layout_height="88dp"', 'android:layout_height="66dp"'),
+              ('android:layout_marginTop="10dp" android:gravity="center"\n                            android:text="@string/status_stopped" android:textSize="17sp"',
+               'android:layout_marginTop="8dp" android:gravity="center"\n                            android:text="@string/status_stopped" android:textSize="16sp"'),
+              ('android:layout_marginTop="12dp" android:layout_marginBottom="6dp"',
+               'android:layout_marginTop="8dp" android:layout_marginBottom="5dp"'),
+              ('android:padding="16dp" android:text="@string/no_profiles"',
+               'android:padding="14dp" android:text="@string/no_profiles"'),
+              ('android:layout_gravity="bottom|end" android:layout_margin="20dp"',
+               'android:layout_gravity="bottom|end" android:layout_margin="16dp"'),
+              ('app:cardBackgroundColor="@color/primary_dark"\n                    app:strokeColor="@color/accent" app:strokeWidth="1dp"',
+               'app:cardBackgroundColor="@color/primary_dark"\n                    app:strokeColor="#2635D9FF" app:strokeWidth="1dp"'),
+              ('app:cardCornerRadius="18dp" app:cardElevation="3dp" app:strokeColor="#243F43"',
+               'app:cardCornerRadius="20dp" app:cardElevation="0dp" app:strokeColor="#2635D9FF"'),
+          ]
+          for old, new in replacements:
+              if old in s:
+                  s = s.replace(old, new)
+          # Add a small control-panel label above the connection button.
+          anchor = '                        <FrameLayout\n                            android:id="@+id/connectButton"'
+          label = '''                        <TextView
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="TUNNEL CONTROL" android:textColor="@color/text_secondary"
+                            android:textSize="10sp" android:letterSpacing="0.16" android:textStyle="bold"
+                            android:layout_marginBottom="2dp" />
+                        <FrameLayout
+                            android:id="@+id/connectButton"'''
+          if anchor in s and 'TUNNEL CONTROL' not in s:
+              s = s.replace(anchor, label, 1)
+          # Make chart and controls denser on smaller phones.
+          s = s.replace('android:layout_height="88dp"','android:layout_height="66dp"')
+          s = s.replace('android:layout_marginTop="8dp" android:orientation="vertical">',
+                        'android:layout_marginTop="6dp" android:orientation="vertical">')
           p.write_text(s)
-          print("Applied compact responsive home screen spacing and control sizing.")
+          assert 'android:id="@+id/connectButton"' in s
+          assert 'android:id="@+id/profileList"' in s
+          print("Applied compact cyber-neon home screen while preserving all app control IDs.")
           PY
-          grep -n -E 'connectButton|statusText|trafficChart|brand_subtitle|statsGrid' app/src/main/res/layout/activity_main.xml
+          grep -n -E 'TUNNEL CONTROL|connectButton|statusText|trafficChart|statsGrid|profileList' app/src/main/res/layout/activity_main.xml
 
       - name: Build and stage ARM64 APK
         working-directory: ${{ env.PROJECT_DIR }}
