@@ -272,8 +272,28 @@ jobs:
               s = s.replace(old, new, 1)
           elif 'private fun redact' not in s and 'val clean = line.trim()' not in s:
               raise SystemExit("Could not safely locate LogBuffer input sanitation point in App.kt")
+          if "fun android.content.Context.toast(" not in s:
+              s += """
+
+          private fun android.content.Context.toast(message: CharSequence) {
+              android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show()
+          }
+
+          private fun android.content.Context.clipboard(): android.content.ClipboardManager =
+              getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+          """
+          # Redact SSH usernames emitted in prose as well as key=value credential fields.
+          if "logged\\\\s+in\\\\s+as" not in s:
+              s = s.replace(
+                  '.ifEmpty { return }',
+                  '''.replace(Regex("(?i)(ssh\\\\\\\\s+logged\\\\\\\\s+in\\\\\\\\s+as\\\\\\\\s+)\\\\\\\\S+")) {
+                      it.groupValues[1] + "[REDACTED]"
+                  }
+                  .ifEmpty { return }''',
+                  1
+              )
           p.write_text(s, encoding="utf-8")
-          print("Diagnostics screen installed; credential fields are redacted before entering the log buffer.")
+          print("Diagnostics screen installed; credential fields are redacted and missing Context helpers are supplied.")
           PY
           grep -n -A5 'val clean = line.trim' app/src/main/java/com/androidghosts/dnsttghosts/App.kt
 
