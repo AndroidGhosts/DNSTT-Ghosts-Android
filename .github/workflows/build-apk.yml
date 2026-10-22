@@ -71,7 +71,7 @@ jobs:
           PY
           grep -n -A12 'verifyGhostcoreArm64' app/build.gradle.kts
 
-      - name: Apply compact phone layout globally
+      - name: Apply adaptive accessible phone layout
         shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
@@ -84,31 +84,17 @@ jobs:
           s = p.read_text(encoding="utf-8")
           original = s
 
-          # Compact the whole home screen, not just the connect button.
-          # Keep small touch targets intact; shrink oversized dp dimensions,
-          # spacing and text sizes throughout this layout.
-          def compact_dp(m):
+          # Avoid globally shrinking every dimension and making text hard to read.
+          # Only trim unusually large spacing/dimensions; keep normal touch targets.
+          def compact_large_dp(m):
               value = float(m.group(1))
-              if value < 20:
+              if value < 40:
                   return m.group(0)
-              scaled = max(16, round(value * 0.76))
-              return f'{scaled}dp'
+              return f'{max(32, round(value * 0.88))}dp'
 
-          def compact_sp(m):
-              value = float(m.group(1))
-              if value <= 14:
-                  return m.group(0)
-              scaled = max(12, round(value * 0.86, 1))
-              rendered = str(int(scaled)) if scaled.is_integer() else str(scaled)
-              return f'{rendered}sp'
+          s = re.sub(r'(?<![A-Za-z0-9_.-])(\d+(?:\.\d+)?)dp\b', compact_large_dp, s)
 
-          # Scale all explicit dp/sp literals, including widths, heights,
-          # margins, padding, textSize, icon sizes and chart dimensions.
-          s = re.sub(r'(?<![A-Za-z0-9_.-])(\d+(?:\.\d+)?)dp\b', compact_dp, s)
-          s = re.sub(r'(?<![A-Za-z0-9_.-])(\d+(?:\.\d+)?)sp\b', compact_sp, s)
-
-          # Ensure the primary connect control is compact regardless of its
-          # original value or attribute order.
+          # Ensure the connect control remains a usable size, not a tiny icon.
           pattern = re.compile(r'<[A-Za-z][^>]*@\+id/connectButton[^>]*>', re.DOTALL)
           match = pattern.search(s)
           if not match:
@@ -117,6 +103,35 @@ jobs:
           tag = re.sub(r'android:layout_width="[^"]+"', 'android:layout_width="116dp"', tag, count=1)
           tag = re.sub(r'android:layout_height="[^"]+"', 'android:layout_height="116dp"', tag, count=1)
           s = s[:match.start()] + tag + s[match.end():]
+
+          # Make all clickable controls easier to tap; do not reduce text sizes.
+          clickable = re.compile(r'<([A-Za-z][\w.]*)\b([^>]*android:(?:clickable|onClick)="[^"]+"[^>]*)>', re.DOTALL)
+          def accessible_target(m):
+              tag_name, attrs = m.group(1), m.group(2)
+              if 'android:minHeight=' not in attrs:
+                  attrs += ' android:minHeight="48dp"'
+              if 'android:minWidth=' not in attrs and tag_name.split('.')[-1] in {
+                  'ImageButton', 'Button', 'MaterialButton'
+              }:
+                  attrs += ' android:minWidth="48dp"'
+              return f'<{tag_name}{attrs}>'
+          s = clickable.sub(accessible_target, s)
+
+          # Keep the title readable and prevent it from pushing controls off-screen.
+          # Apply only when the literal app title is declared in this layout.
+          title_pattern = re.compile(r'<([A-Za-z][\w.]*)\b([^>]*(?:Android_Ghosts[.]DNSTT|Android_Ghosts)[^>]*)>', re.DOTALL)
+          def readable_title(m):
+              tag_name, attrs = m.group(1), m.group(2)
+              if 'android:textSize=' in attrs:
+                  attrs = re.sub(r'android:textSize="[^"]+"', 'android:textSize="18sp"', attrs, count=1)
+              else:
+                  attrs += ' android:textSize="18sp"'
+              if 'android:maxLines=' not in attrs:
+                  attrs += ' android:maxLines="1"'
+              if 'android:ellipsize=' not in attrs:
+                  attrs += ' android:ellipsize="end"'
+              return f'<{tag_name}{attrs}>'
+          s = title_pattern.sub(readable_title, s)
 
           required = ("@+id/toolbar", "@+id/telegramLink", "@+id/connectButton",
                       "@+id/connectText", "@+id/statusText", "@+id/profileText",
@@ -127,11 +142,10 @@ jobs:
           if missing:
               raise SystemExit("Missing required Activity view IDs: " + ", ".join(missing))
           if s == original:
-              raise SystemExit("Layout compaction made no changes")
+              raise SystemExit("Adaptive layout patch made no changes")
 
           p.write_text(s, encoding="utf-8")
-          print("Applied global compact layout: dp >= 20 scaled to 76%, sp > 14 scaled to 86%.")
-          print("Connect control enforced at 116dp x 116dp.")
+          print("Adaptive layout applied: large dimensions trimmed modestly, readable text preserved, clickable targets enlarged.")
           PY
 
       - name: Build and stage ARM64 APK
