@@ -159,7 +159,7 @@ jobs:
                       s = s.replace(root_tag, new_root_tag, 1)
 
               # 2. تعديلات خاصة بالشاشة الرئيسية فقط (activity_main.xml)
-              if p.name == "activity_main.xml":
+              if p.name == "activity_main.xml" and "GHOSTS_ADAPTIVE_PHONE_LAYOUT_APPLIED" not in s:
                   def compact_large_dp(m):
                       value = float(m.group(1))
                       if value < 40:
