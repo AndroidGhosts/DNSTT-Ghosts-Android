@@ -71,7 +71,7 @@ jobs:
           PY
           grep -n -A12 'verifyGhostcoreArm64' app/build.gradle.kts
 
-      - name: Extend every Activity behind status bar and camera cutout
+      - name: Extend app behind status bar and camera cutout
         shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
@@ -81,14 +81,17 @@ jobs:
           import re
 
           roots = [Path("app/src/main/java"), Path("app/src/main/kotlin")]
-          files = []
-          for root in roots:
-              if root.exists():
-                  files.extend(root.rglob("*Activity.kt"))
-                  files.extend(root.rglob("*Activity.java"))
-          files = sorted(set(files))
+          files = [p for root in roots if root.exists() for p in root.rglob("*Activity.kt")]
+          files += [p for root in roots if root.exists() for p in root.rglob("*Activity.java")]
           if not files:
-              raise SystemExit("No Activity source files found; cannot apply edge-to-edge mode.")
+              raise SystemExit("No Activity source file found; cannot safely apply edge-to-edge mode.")
+          files.sort(key=lambda p: (0 if "MainActivity" in p.name else 1, str(p)))
+          p = files[0]
+          s = p.read_text(encoding="utf-8")
+          marker = "GHOSTS_EDGE_TO_EDGE_STATUS_BAR"
+          if marker in s:
+              print(f"Edge-to-edge mode already configured in {p}")
+              raise SystemExit(0)
 
           kt = """
                   // GHOSTS_EDGE_TO_EDGE_STATUS_BAR: draw behind status bar and into the display cutout area.
@@ -122,26 +125,15 @@ jobs:
                   );
           """
           pattern = r'super\.onCreate\(savedInstanceState\)'
-          changed = 0
-          for p in files:
-              s = p.read_text(encoding="utf-8")
-              if "GHOSTS_EDGE_TO_EDGE_STATUS_BAR" in s:
-                  print(f"Already configured: {p}")
-                  continue
-              block = kt if p.suffix == ".kt" else java
-              updated, n = re.subn(pattern, lambda m: m.group(0) + block, s, count=1)
-              if n != 1:
-                  print(f"WARNING: skipped {p}: onCreate(savedInstanceState) not found")
-                  continue
-              p.write_text(updated, encoding="utf-8")
-              changed += 1
-              print(f"Enabled edge-to-edge: {p}")
-          if changed == 0 and not any("GHOSTS_EDGE_TO_EDGE_STATUS_BAR" in p.read_text(encoding="utf-8") for p in files):
-              raise SystemExit("Could not apply edge-to-edge mode to any Activity.")
-          print(f"Processed {len(files)} Activity source files; updated {changed}.")
+          block = kt if p.suffix == ".kt" else java
+          updated, n = re.subn(pattern, lambda m: m.group(0) + block, s, count=1)
+          if n != 1:
+              raise SystemExit(f"Could not find onCreate(savedInstanceState) in {p}; no source changed.")
+          p.write_text(updated, encoding="utf-8")
+          print(f"Enabled edge-to-edge status bar/cutout layout in {p}")
           PY
 
-      - name: Apply adaptive accessible phone layout
+      - name: Apply adaptive accessible phone layout to all screens
         shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
@@ -150,84 +142,87 @@ jobs:
           from pathlib import Path
           import re
 
-          p = Path("app/src/main/res/layout/activity_main.xml")
-          s = p.read_text(encoding="utf-8")
-          original = s
+          layout_dir = Path("app/src/main/res/layout")
+          if not layout_dir.exists():
+              raise SystemExit("Layout directory not found.")
 
-          # إضافة fitsSystemWindows="true" للعنصر الجذري تلقائياً لمنع التداخل
-          root_match = re.search(r'(<[a-zA-Z0-9.]+Layout\b[^>]*)>', s)
-          if root_match:
-              root_tag = root_match.group(1)
-              if 'android:fitsSystemWindows' not in root_tag:
-                  new_root_tag = root_tag + ' android:fitsSystemWindows="true"'
-                  s = s.replace(root_tag, new_root_tag, 1)
+          for p in layout_dir.glob("*.xml"):
+              s = p.read_text(encoding="utf-8")
+              original = s
 
-          # تقليص الأبعاد الكبيرة بشكل بسيط
-          def compact_large_dp(m):
-              value = float(m.group(1))
-              if value < 40:
-                  return m.group(0)
-              return f'{max(32, round(value * 0.88))}dp'
+              # 1. إضافة fitsSystemWindows="true" للعنصر الجذري في جميع الشاشات لمنع تداخل المحتوى مع أشرطة النظام
+              root_match = re.search(r'(<[a-zA-Z0-9.]+\b[^>]*)>', s)
+              if root_match:
+                  root_tag = root_match.group(1)
+                  if 'android:fitsSystemWindows' not in root_tag:
+                      new_root_tag = root_tag + ' android:fitsSystemWindows="true"'
+                      s = s.replace(root_tag, new_root_tag, 1)
 
-          s = re.sub(r'(?<![A-Za-z0-9_.-])(\d+(?:\.\d+)?)dp\b', compact_large_dp, s)
+              # 2. تعديلات خاصة بالشاشة الرئيسية فقط (activity_main.xml)
+              if p.name == "activity_main.xml":
+                  def compact_large_dp(m):
+                      value = float(m.group(1))
+                      if value < 40:
+                          return m.group(0)
+                      return f'{max(32, round(value * 0.88))}dp'
 
-          # ضبط زر الاتصال الرئيسي
-          pattern = re.compile(r'<[A-Za-z][^>]*@\+id/connectButton[^>]*>', re.DOTALL)
-          match = pattern.search(s)
-          if not match:
-              raise SystemExit("Could not find connectButton in activity_main.xml")
-          tag = match.group(0)
-          tag = re.sub(r'android:layout_width="[^"]+"', 'android:layout_width="116dp"', tag, count=1)
-          tag = re.sub(r'android:layout_height="[^"]+"', 'android:layout_height="116dp"', tag, count=1)
-          s = s[:match.start()] + tag + s[match.end():]
+                  s = re.sub(r'(?<![A-Za-z0-9_.-])(\d+(?:\.\d+)?)dp\b', compact_large_dp, s)
 
-          # ضمان سهولة الضغط على العناصر القابلة للنقر
-          clickable = re.compile(r'<([A-Za-z][\w.]*)\b([^>]*android:(?:clickable|onClick)="[^"]+"[^>]*)>', re.DOTALL)
-          def accessible_target(m):
-              tag_name, attrs = m.group(1), m.group(2)
-              self_closing = attrs.rstrip().endswith("/")
-              if self_closing:
-                  attrs = attrs.rstrip()[:-1].rstrip()
-              if 'android:minHeight=' not in attrs:
-                  attrs += ' android:minHeight="48dp"'
-              if 'android:minWidth=' not in attrs and tag_name.split('.')[-1] in {
-                  'ImageButton', 'Button', 'MaterialButton'
-              }:
-                  attrs += ' android:minWidth="48dp"'
-              return f'<{tag_name}{attrs}{" /" if self_closing else ""}>'
-          s = clickable.sub(accessible_target, s)
+                  pattern = re.compile(r'<[A-Za-z][^>]*@\+id/connectButton[^>]*>', re.DOTALL)
+                  match = pattern.search(s)
+                  if not match:
+                      raise SystemExit("Could not find connectButton in activity_main.xml")
+                  tag = match.group(0)
+                  tag = re.sub(r'android:layout_width="[^"]+"', 'android:layout_width="116dp"', tag, count=1)
+                  tag = re.sub(r'android:layout_height="[^"]+"', 'android:layout_height="116dp"', tag, count=1)
+                  s = s[:match.start()] + tag + s[match.end():]
 
-          # الحفاظ على وضوح العنوان
-          title_pattern = re.compile(r'<([A-Za-z][\w.]*)\b([^>]*(?:Android_Ghosts[.]DNSTT|Android_Ghosts)[^>]*)>', re.DOTALL)
-          def readable_title(m):
-              tag_name, attrs = m.group(1), m.group(2)
-              self_closing = attrs.rstrip().endswith("/")
-              if self_closing:
-                  attrs = attrs.rstrip()[:-1].rstrip()
-              if 'android:textSize=' in attrs:
-                  attrs = re.sub(r'android:textSize="[^"]+"', 'android:textSize="18sp"', attrs, count=1)
-              else:
-                  attrs += ' android:textSize="18sp"'
-              if 'android:maxLines=' not in attrs:
-                  attrs += ' android:maxLines="1"'
-              if 'android:ellipsize=' not in attrs:
-                  attrs += ' android:ellipsize="end"'
-              return f'<{tag_name}{attrs}{" /" if self_closing else ""}>'
-          s = title_pattern.sub(readable_title, s)
+                  clickable = re.compile(r'<([A-Za-z][\w.]*)\b([^>]*android:(?:clickable|onClick)="[^"]+"[^>]*)>', re.DOTALL)
+                  def accessible_target(m):
+                      tag_name, attrs = m.group(1), m.group(2)
+                      self_closing = attrs.rstrip().endswith("/")
+                      if self_closing:
+                          attrs = attrs.rstrip()[:-1].rstrip()
+                      if 'android:minHeight=' not in attrs:
+                          attrs += ' android:minHeight="48dp"'
+                      if 'android:minWidth=' not in attrs and tag_name.split('.')[-1] in {
+                          'ImageButton', 'Button', 'MaterialButton'
+                      }:
+                          attrs += ' android:minWidth="48dp"'
+                      return f'<{tag_name}{attrs}{" /" if self_closing else ""}>'
+                  s = clickable.sub(accessible_target, s)
 
-          required = ("@+id/toolbar", "@+id/telegramLink", "@+id/connectButton",
-                      "@+id/connectText", "@+id/statusText", "@+id/profileText",
-                      "@+id/statsGrid", "@+id/trafficChart", "@+id/chartSummary",
-                      "@+id/chartWindowButton", "@+id/profileList", "@+id/testButton",
-                      "@+id/fab", "@+id/emptyText")
-          missing = [view_id for view_id in required if view_id not in s]
-          if missing:
-              raise SystemExit("Missing required Activity view IDs: " + ", ".join(missing))
-          if s == original:
-              raise SystemExit("Adaptive layout patch made no changes")
+                  title_pattern = re.compile(r'<([A-Za-z][\w.]*)\b([^>]*(?:Android_Ghosts[.]DNSTT|Android_Ghosts)[^>]*)>', re.DOTALL)
+                  def readable_title(m):
+                      tag_name, attrs = m.group(1), m.group(2)
+                      self_closing = attrs.rstrip().endswith("/")
+                      if self_closing:
+                          attrs = attrs.rstrip()[:-1].rstrip()
+                      if 'android:textSize=' in attrs:
+                          attrs = re.sub(r'android:textSize="[^"]+"', 'android:textSize="18sp"', attrs, count=1)
+                      else:
+                          attrs += ' android:textSize="18sp"'
+                      if 'android:maxLines=' not in attrs:
+                          attrs += ' android:maxLines="1"'
+                      if 'android:ellipsize=' not in attrs:
+                          attrs += ' android:ellipsize="end"'
+                      return f'<{tag_name}{attrs}{" /" if self_closing else ""}>'
+                  s = title_pattern.sub(readable_title, s)
 
-          p.write_text(s, encoding="utf-8")
-          print("Adaptive layout applied: large dimensions trimmed modestly, readable text preserved, clickable targets enlarged, fitsSystemWindows added.")
+                  required = ("@+id/toolbar", "@+id/telegramLink", "@+id/connectButton",
+                              "@+id/connectText", "@+id/statusText", "@+id/profileText",
+                              "@+id/statsGrid", "@+id/trafficChart", "@+id/chartSummary",
+                              "@+id/chartWindowButton", "@+id/profileList", "@+id/testButton",
+                              "@+id/fab", "@+id/emptyText")
+                  missing = [view_id for view_id in required if view_id not in s]
+                  if missing:
+                      raise SystemExit("Missing required Activity view IDs: " + ", ".join(missing))
+
+              if s != original:
+                  p.write_text(s, encoding="utf-8")
+                  print(f"Updated layout file: {p.name}")
+
+          print("Successfully applied fitsSystemWindows to all layout screens and adaptive layout to main activity.")
           PY
 
       - name: Build and stage ARM64 APK
