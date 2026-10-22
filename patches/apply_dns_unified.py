@@ -178,7 +178,7 @@ if 'splits {' not in s:
     }
 
 ''' + marker, 1)
-s = s.replace("""val entry = zip.getEntry("jni/arm64-v8a/libgojni.so")
+s = s.replace("""            val entry = zip.getEntry("jni/arm64-v8a/libgojni.so")
                 ?: throw GradleException("ghostcore.aar does not include jni/arm64-v8a/libgojni.so")""",
 '''            val requiredAbis = listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
             requiredAbis.forEach { abi ->
