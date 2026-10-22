@@ -18,6 +18,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.setPadding
 import com.google.android.material.appbar.MaterialToolbar
@@ -34,6 +35,7 @@ class LogActivity : AppCompatActivity() {
     private lateinit var scroll: ScrollView
     private lateinit var search: EditText
     private lateinit var summary: TextView
+    private lateinit var insight: TextView // تم تعريف المتغير هنا لمنع خطأ التجميع
     private lateinit var filterBar: LinearLayout
     private var selectedFilter = "ALL"
     private var live = true
@@ -97,9 +99,16 @@ class LogActivity : AppCompatActivity() {
             setBackgroundColor(panel)
         }
         top.addView(label("●  SYSTEM TELEMETRY     /     ANDROID_GHOSTS", 11f, accent, true))
+        
         summary = label("BUFFER 0  •  INFO 0  •  WARN 0  •  ERROR 0", 10f, muted)
         val summaryParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(7) }
         top.addView(summary, summaryParams)
+
+        // إنشاء وإضافة عنصر insight للواجهة لتجنب خطأ Unresolved reference
+        insight = label("SESSION: IDLE  •  PROBES: 0  •  DNS EVENTS: 0", 10f, muted)
+        val insightParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) }
+        top.addView(insight, insightParams)
+
         root.addView(top)
 
         search = EditText(this).apply {
@@ -325,7 +334,7 @@ class LogActivity : AppCompatActivity() {
             .setPositiveButton("COPY REPORT") { _, _ ->
                 val cm = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                 cm.setPrimaryClip(ClipData.newPlainText("Android_Ghosts event analysis", report))
-                android.widget.Toast.makeText(this, "Analysis copied", android.widget.Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Analysis copied", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("CLOSE", null)
             .show()
@@ -349,7 +358,7 @@ class LogActivity : AppCompatActivity() {
             1 -> {
                 val cm = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                 cm.setPrimaryClip(ClipData.newPlainText("Android_Ghosts diagnostics", logText.text))
-                android.widget.Toast.makeText(this, getString(R.string.copied), android.widget.Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.copied), Toast.LENGTH_SHORT).show()
             }
             2 -> {
                 val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
