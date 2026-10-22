@@ -71,7 +71,7 @@ jobs:
           PY
           grep -n -A12 'verifyGhostcoreArm64' app/build.gradle.kts
 
-      - name: Enable immersive full-screen phone display
+      - name: Extend app behind status bar and camera cutout
         shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
@@ -84,56 +84,53 @@ jobs:
           files = [p for root in roots if root.exists() for p in root.rglob("*Activity.kt")]
           files += [p for root in roots if root.exists() for p in root.rglob("*Activity.java")]
           if not files:
-              raise SystemExit("No Activity source file found; refusing to guess where to patch full-screen mode.")
-
-          # Prefer the launcher/main activity, otherwise use the first activity source.
+              raise SystemExit("No Activity source file found; cannot safely apply edge-to-edge mode.")
           files.sort(key=lambda p: (0 if "MainActivity" in p.name else 1, str(p)))
           p = files[0]
           s = p.read_text(encoding="utf-8")
-          if "GHOSTS_IMMERSIVE_FULLSCREEN" in s:
-              print(f"Immersive full-screen already configured in {p}")
+          marker = "GHOSTS_EDGE_TO_EDGE_STATUS_BAR"
+          if marker in s:
+              print(f"Edge-to-edge mode already configured in {p}")
               raise SystemExit(0)
 
-          block = """
-                  // GHOSTS_IMMERSIVE_FULLSCREEN: use the full display while keeping content out of the camera cutout.
+          kt = """
+                  // GHOSTS_EDGE_TO_EDGE_STATUS_BAR: draw behind status bar and into the display cutout area.
                   if (android.os.Build.VERSION.SDK_INT >= 28) {
                       val lp = window.attributes
-                      lp.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER
+                      lp.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
                       window.attributes = lp
                   }
+                  window.statusBarColor = android.graphics.Color.TRANSPARENT
+                  window.navigationBarColor = android.graphics.Color.TRANSPARENT
                   @Suppress("DEPRECATION")
                   window.decorView.systemUiVisibility = (
-                      android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
-                      or android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                      or android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                      or android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                      android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                      or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                      or android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                   )
           """
-          if p.suffix == ".kt":
-              pattern = r'(super\\.onCreate\\(savedInstanceState\\)\\s*)'
-              updated, n = re.subn(pattern, lambda m: m.group(1) + block, s, count=1)
-          else:
-              # Java activity syntax
-              block_java = """
-                  // GHOSTS_IMMERSIVE_FULLSCREEN: full display, avoiding the camera cutout.
+          java = """
+                  // GHOSTS_EDGE_TO_EDGE_STATUS_BAR: draw behind status bar and into the display cutout area.
                   if (android.os.Build.VERSION.SDK_INT >= 28) {
                       android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
-                      lp.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER;
+                      lp.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
                       getWindow().setAttributes(lp);
                   }
+                  getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
+                  getWindow().setNavigationBarColor(android.graphics.Color.TRANSPARENT);
                   getWindow().getDecorView().setSystemUiVisibility(
-                      android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
-                      | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                      | android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                      | android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                      android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                      | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                      | android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                   );
-              """
-              pattern = r'(super\\.onCreate\\(savedInstanceState\\)\\s*;)'
-              updated, n = re.subn(pattern, lambda m: m.group(1) + block_java, s, count=1)
+          """
+          pattern = r'super\.onCreate\(savedInstanceState\)'
+          block = kt if p.suffix == ".kt" else java
+          updated, n = re.subn(pattern, lambda m: m.group(0) + block, s, count=1)
           if n != 1:
-              raise SystemExit(f"Could not safely find onCreate(savedInstanceState) in {p}; no source changed.")
+              raise SystemExit(f"Could not find onCreate(savedInstanceState) in {p}; no source changed.")
           p.write_text(updated, encoding="utf-8")
-          print(f"Enabled immersive full-screen mode in {p}")
+          print(f"Enabled edge-to-edge status bar/cutout layout in {p}")
           PY
 
       - name: Apply adaptive accessible phone layout
