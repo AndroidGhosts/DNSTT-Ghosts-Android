@@ -83,26 +83,32 @@ jobs:
           p = Path("app/src/main/res/layout/activity_main.xml")
           s = p.read_text(encoding="utf-8")
 
-          # Make the main layout phone-first. Avoid broad padding replacements:
-          # they can unintentionally enlarge every nested control.
-          replacements = [
-              ('android:layout_width="92dp" android:layout_height="92dp"',
-               'android:layout_width="132dp" android:layout_height="132dp"'),
-              ('android:layout_width="112dp" android:layout_height="112dp"',
-               'android:layout_width="132dp" android:layout_height="132dp"'),
+          # Patch the actual connect-button tag regardless of attribute order/line breaks.
+          pattern = re.compile(r'<[A-Za-z][^>]*@\+id/connectButton[^>]*>', re.DOTALL)
+          match = pattern.search(s)
+          if not match:
+              raise SystemExit("Could not find the connectButton XML tag in activity_main.xml")
+          tag = match.group(0)
+          tag = re.sub(r'android:layout_width="[^"]+"', 'android:layout_width="132dp"', tag, count=1)
+          tag = re.sub(r'android:layout_height="[^"]+"', 'android:layout_height="132dp"', tag, count=1)
+          if 'android:layout_width="132dp"' not in tag or 'android:layout_height="132dp"' not in tag:
+              raise SystemExit("Could not set connectButton to 132dp x 132dp")
+          s = s[:match.start()] + tag + s[match.end():]
+
+          # Increase common compact icon sizes only, without globally changing all padding.
+          for old, new in (
               ('android:layout_width="32dp" android:layout_height="32dp"',
                'android:layout_width="52dp" android:layout_height="52dp"'),
               ('android:layout_width="40dp" android:layout_height="40dp"',
                'android:layout_width="52dp" android:layout_height="52dp"'),
-              ('android:layout_height="52dp"', 'android:layout_height="?attr/actionBarSize"'),
-              ('app:cardCornerRadius="16dp"', 'app:cardCornerRadius="20dp"'),
-              ('android:layout_gravity="bottom|end" android:layout_margin="16dp"',
-               'android:layout_gravity="bottom|end" android:layout_margin="20dp"'),
-          ]
-          for old, new in replacements:
+          ):
               s = s.replace(old, new)
 
-          # Remove only the specific compact heading if present; use a real whitespace regex.
+          s = s.replace('android:layout_height="52dp"', 'android:layout_height="?attr/actionBarSize"')
+          s = s.replace('app:cardCornerRadius="16dp"', 'app:cardCornerRadius="20dp"')
+          s = s.replace('android:layout_gravity="bottom|end" android:layout_margin="16dp"',
+                        'android:layout_gravity="bottom|end" android:layout_margin="20dp"')
+
           s = re.sub(
               r'\s*<TextView\b(?=[^>]*android:text="TUNNEL CONTROL")[^>]*/>\s*',
               '\\n', s, count=1
@@ -117,13 +123,8 @@ jobs:
           if missing:
               raise SystemExit("Missing required Activity view IDs: " + ", ".join(missing))
 
-          # Fail fast if the intended connect control still has the known compact dimensions.
-          m = re.search(r'<[^>]*@\+id/connectButton[^>]*>', s)
-          if m and ('92dp' in m.group(0) or '112dp' in m.group(0)):
-              raise SystemExit("Connect button remained compact; layout was not patched as expected.")
-
           p.write_text(s, encoding="utf-8")
-          print("Phone-first sizing patch applied to:", p)
+          print("Verified phone connect button size: 132dp x 132dp")
           PY
 
       - name: Build and stage ARM64 APK
