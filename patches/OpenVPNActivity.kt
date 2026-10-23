@@ -581,6 +581,7 @@ class OpenVPNActivity : AppCompatActivity() {
     private fun refreshState() {
         val s = OpenVPNEngine.state
         status.text = when {
+            OpenVPNEngine.lastError == "timeout" -> getString(R.string.openvpn_timeout)
             OpenVPNEngine.failed -> getString(R.string.openvpn_failed)
             s == "CONNECTED" -> getString(R.string.openvpn_connected) + " • " + OpenVPNEngine.currentProfileName
             s == "CONNECTING" -> getString(R.string.openvpn_connecting)
