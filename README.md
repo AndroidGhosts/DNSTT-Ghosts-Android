@@ -2,14 +2,20 @@
 
 A phone-first Android VPN client branded **Android_Ghosts**, intended for ARM64 Android devices such as the Samsung Galaxy A56.
 
-## Scope
+## Available connection engines
 
-This project intentionally exposes only two tunnel types:
+The app has two Android VPN engines, selected from the toolbar/side menu:
 
-- **DNSTT** — uses the project's bundled `ghostcore.aar`.
+- **DNSTT** — bundled `ghostcore.aar`; supports DNS/UDP, DoH and DoT resolver transports, KCP, Noise and smux.
 - **OpenVPN** — imports standard client `.ovpn` profiles and supports text certificate/key sidecar files that can be inlined during import.
 
+Within DNSTT profiles, the engine also supports SSH mode, local SOCKS5 TCP CONNECT, HTTP proxy and local TCP port forwarding. These are modes/proxies carried by the DNSTT engine, not independent VPN engines. DNS transport selection is separate from the local proxy type.
+
 Android permits one active VPN service at a time. Disconnect DNSTT before starting OpenVPN, and disconnect OpenVPN before starting DNSTT.
+
+## Important protocol boundary
+
+The current code does **not** implement SOCKS5 UDP ASSOCIATE, generic UDP forwarding through DNSTT/SSH, QUIC tunneling, or QUIC-over-SOCKS5 end-to-end. These cannot be made functional by adding a menu item alone: they need packet-preserving transport and compatible remote-side handling. See [PROTOCOL_SUPPORT_AND_GAPS.md](PROTOCOL_SUPPORT_AND_GAPS.md) for the audited support matrix and acceptance tests. Unsupported transports must not be presented as working.
 
 ## Current UX
 
@@ -18,7 +24,7 @@ Android permits one active VPN service at a time. Disconnect DNSTT before starti
 - OpenVPN profile import, profile selection/deletion, advanced config editor and transport settings.
 - Per-profile OpenVPN username/password persistence in app-private storage.
 - In-app logs screen with live refresh, copy/clear actions and OpenVPN connection diagnostics.
-- Single tunnel selector in the toolbar menu; OpenVPN is not a separate home-screen protocol button.
+- Connection engine selection from the toolbar/side menu; no separate OpenVPN button on the home screen.
 - ARM64 APK build artifact from GitHub Actions.
 
 ## Build an APK
@@ -53,4 +59,4 @@ The build uses the pinned OpenVPN engine dependency and the project's DNSTT nati
 
 ## Known verification boundary
 
-The repository workflow is designed to build the ARM64 APK, but a successful build and a live OpenVPN connection are separate checks. Test the produced APK on a real Android device with a known-good `.ovpn` profile before treating the connection path as verified.
+A successful compile and a live connection are separate checks. Test the produced APK on a real Android device against known-good DNSTT and OpenVPN endpoints before treating the connection paths as verified.
