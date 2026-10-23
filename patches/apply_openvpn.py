@@ -27,7 +27,7 @@ EN = {
 "openvpn_switch_disconnect_timeout":"OpenVPN is still disconnecting. Wait a moment and switch again.",
 "openvpn_advanced_title":"Advanced OpenVPN settings","openvpn_advanced_help":"Edit the complete .ovpn configuration. All supported OpenVPN directives are preserved. Incorrect settings can prevent connection.",
 "openvpn_save_advanced":"Save settings","openvpn_advanced_saved":"Advanced profile settings saved.",
-"openvpn_advanced_disconnect_first":"Disconnect OpenVPN before editing advanced settings."
+"openvpn_advanced_disconnect_first":"Disconnect OpenVPN before editing advanced settings.",
 "openvpn_full_config_editor":"Edit full .ovpn configuration",
 "openvpn_transport_assistant":"Transport / DPI compatibility",
 "openvpn_transport_warning":"This adjusts OpenVPN transport settings only. TCP/443 is not a guaranteed DPI bypass; the server must support the selected protocol/port, and real obfuscation requires compatible server-side wrapping.",
@@ -62,7 +62,7 @@ AR = {
 "openvpn_switch_disconnect_timeout":"ما زال OpenVPN يفصل الاتصال. انتظر قليلًا ثم حاول التبديل.",
 "openvpn_advanced_title":"إعدادات OpenVPN المتقدمة","openvpn_advanced_help":"يمكنك تعديل ملف .ovpn كاملًا مع الحفاظ على توجيهات OpenVPN المدعومة. الإعدادات غير الصحيحة قد تمنع الاتصال.",
 "openvpn_save_advanced":"حفظ الإعدادات","openvpn_advanced_saved":"تم حفظ إعدادات الملف المتقدمة.",
-"openvpn_advanced_disconnect_first":"افصل OpenVPN قبل تعديل الإعدادات المتقدمة."
+"openvpn_advanced_disconnect_first":"افصل OpenVPN قبل تعديل الإعدادات المتقدمة.",
 "openvpn_full_config_editor":"تعديل ملف .ovpn كاملًا",
 "openvpn_transport_assistant":"مساعد النقل والتوافق مع DPI",
 "openvpn_transport_warning":"هذه الخيارات تعدّل إعدادات النقل فقط. استخدام TCP/443 لا يضمن تجاوز DPI؛ يجب أن يدعم الخادم البروتوكول والمنفذ، والتعمية الحقيقية تحتاج تغليفًا متوافقًا على الخادم أيضًا.",
