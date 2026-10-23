@@ -136,7 +136,7 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
         }
         when (level) {
             IcsStatus.LEVEL_CONNECTED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "CONNECTED"; failed = false; lastError = "" }
-            IcsStatus.LEVEL_NOTCONNECTED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "DISCONNECTED" }
+            IcsStatus.LEVEL_NOTCONNECTED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "DISCONNECTED"; if (lastError.isNotBlank()) failed = true }
             IcsStatus.LEVEL_AUTH_FAILED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "DISCONNECTED"; failed = true; if (lastError.isBlank()) lastError = "Authentication failed" }
             IcsStatus.LEVEL_START,
             IcsStatus.LEVEL_CONNECTING_SERVER_REPLIED,
