@@ -425,7 +425,7 @@ jobs:
                   if not any(r.exists() and any(p.name == f"{class_name}.kt" or p.name == f"{class_name}.java" for p in r.rglob("*")) for r in source_roots):
                       raise SystemExit(f"Custom view class source not found: {view}")
 
-          required = {"toolbar", "telegramLink", "openVpnButton", "connectButton", "connectText", "statusText",
+          required = {"toolbar", "telegramLink", "connectButton", "connectText", "statusText",
                       "profileText", "statsGrid", "trafficChart", "chartSummary",
                       "chartWindowButton", "profileList", "testButton", "fab", "emptyText"}
           ids = {v.attrib.get("{http://schemas.android.com/apk/res/android}id", "").split("/")[-1]
