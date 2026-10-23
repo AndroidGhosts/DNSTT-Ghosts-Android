@@ -42,6 +42,23 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
     }
     @Volatile private var initialized = false
 
+    // In-app diagnostics history, available without privileged Android logcat access.
+    private val diagnosticLock = Any()
+    private val diagnosticLines = java.util.ArrayDeque<String>()
+    private val maxDiagnosticLines = 250
+
+    fun diagnostics(): String = synchronized(diagnosticLock) { diagnosticLines.joinToString("\n") }
+
+    private fun recordDiagnostic(message: String) {
+        val clean = message.replace('\n', ' ').replace('\r', ' ').take(220)
+        if (clean.isBlank()) return
+        val stamp = android.text.format.DateFormat.format("HH:mm:ss", System.currentTimeMillis())
+        synchronized(diagnosticLock) {
+            diagnosticLines.addLast("$stamp [OPENVPN] $clean")
+            while (diagnosticLines.size > maxDiagnosticLines) diagnosticLines.removeFirst()
+        }
+    }
+
     @Synchronized fun initialize(context: Context) {
         if (initialized) return
         appContext = context.applicationContext
@@ -59,6 +76,7 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
         timeoutHandler.removeCallbacks(connectionTimeout)
         state = "CONNECTING"; failed = false; lastError = ""; downloadBytes = 0L; uploadBytes = 0L
         currentProfileName = profileName
+        recordDiagnostic("Connection requested for profile: " + profileName.take(80))
         timeoutHandler.postDelayed(connectionTimeout, CONNECTION_DEADLINE_MS)
         try {
             val boundedConfig = applyConnectionLimits(configText)
@@ -78,6 +96,7 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
         } catch (error: Exception) {
             timeoutHandler.removeCallbacks(connectionTimeout)
             state = "DISCONNECTED"; failed = true; lastError = error.message?.take(220) ?: "start_failed"
+            recordDiagnostic("Connection start failed: " + (error.message ?: "unknown error"))
             Log.e(TAG, "OpenVPN connect failed", error)
             throw error
         }
@@ -132,12 +151,13 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
             ).containsMatchIn(logmessage)
         ) {
             lastError = logmessage.trim().take(220)
+            recordDiagnostic(lastError)
             Log.w(TAG, "OpenVPN diagnostic: $lastError")
         }
         when (level) {
-            IcsStatus.LEVEL_CONNECTED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "CONNECTED"; failed = false; lastError = "" }
-            IcsStatus.LEVEL_NOTCONNECTED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "DISCONNECTED"; if (lastError.isNotBlank()) failed = true }
-            IcsStatus.LEVEL_AUTH_FAILED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "DISCONNECTED"; failed = true; if (lastError.isBlank()) lastError = "Authentication failed" }
+            IcsStatus.LEVEL_CONNECTED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "CONNECTED"; failed = false; lastError = ""; recordDiagnostic("Tunnel connected successfully") }
+            IcsStatus.LEVEL_NOTCONNECTED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "DISCONNECTED"; if (lastError.isNotBlank()) failed = true; recordDiagnostic(if (lastError.isNotBlank()) "Disconnected: $lastError" else "Tunnel disconnected") }
+            IcsStatus.LEVEL_AUTH_FAILED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "DISCONNECTED"; failed = true; if (lastError.isBlank()) lastError = "Authentication failed"; recordDiagnostic("Authentication failed: $lastError") }
             IcsStatus.LEVEL_START,
             IcsStatus.LEVEL_CONNECTING_SERVER_REPLIED,
             IcsStatus.LEVEL_CONNECTING_NO_SERVER_REPLY_YET,
