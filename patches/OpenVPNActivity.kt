@@ -86,7 +86,7 @@ class OpenVPNActivity : AppCompatActivity() {
             if (item.itemId == MENU_SWITCH_TUNNEL) { showTunnelChooser(); true } else false
         }
         importButton.setOnClickListener { importLauncher.launch(arrayOf("*/*")) }
-        advancedButton.setOnClickListener { showAdvancedEditor() }
+        advancedButton.setOnClickListener { showAdvancedOptions() }
         connectButton.setOnClickListener { connectSelected() }
         disconnectButton.setOnClickListener { OpenVPNEngine.disconnect(applicationContext); refreshState() }
         OpenVPNEngine.initialize(applicationContext)
@@ -337,6 +337,109 @@ class OpenVPNActivity : AppCompatActivity() {
         handler.postDelayed({ waitForDisconnectAndFinish(attempt + 1) }, 250)
     }
 
+    private fun showAdvancedOptions() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.openvpn_advanced_title)
+            .setItems(arrayOf(getString(R.string.openvpn_full_config_editor), getString(R.string.openvpn_transport_assistant))) { _, which ->
+                if (which == 0) showAdvancedEditor() else showTransportAssistant()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /**
+     * Transport compatibility helper, not a universal DPI bypass. TCP/443 remains
+     * identifiable as OpenVPN unless the server also supports a compatible wrapper.
+     */
+    private fun showTransportAssistant() {
+        val profile = profiles.firstOrNull { it.id == selectedId }
+        if (profile == null) { toast(getString(R.string.openvpn_choose_profile)); return }
+        if (OpenVPNEngine.state != "DISCONNECTED") {
+            toast(getString(R.string.openvpn_advanced_disconnect_first)); return
+        }
+        val config = runCatching { profile.file.readText(StandardCharsets.UTF_8) }
+            .getOrElse { toast(getString(R.string.openvpn_read_failed, profile.name)); return }
+        val currentProto = firstMatch(PROTO_RE, config)?.lowercase(Locale.ROOT) ?: "udp"
+        val currentPort = firstMatch(REMOTE_PORT_RE, config)?.toIntOrNull() ?: if (currentProto.startsWith("tcp")) 443 else 1194
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(8), dp(18), 0)
+        }
+        val mode = android.widget.Spinner(this)
+        mode.adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item,
+            arrayOf(getString(R.string.openvpn_transport_udp), getString(R.string.openvpn_transport_tcp)))
+        mode.setSelection(if (currentProto.startsWith("tcp")) 1 else 0)
+        val port = EditText(this).apply {
+            hint = getString(R.string.openvpn_remote_port)
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setSingleLine(true)
+            setText(currentPort.toString())
+        }
+        val mtu = EditText(this).apply {
+            hint = getString(R.string.openvpn_tun_mtu)
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setSingleLine(true)
+            setText(firstMatch(TUN_MTU_RE, config) ?: "1500")
+        }
+        val mss = EditText(this).apply {
+            hint = getString(R.string.openvpn_mssfix)
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setSingleLine(true)
+            setText(firstMatch(MSSFIX_RE, config) ?: "1360")
+        }
+        box.addView(TextView(this).apply { text = getString(R.string.openvpn_transport_warning); setTextColor(Color.rgb(220, 190, 110)); setPadding(0, 0, 0, dp(10)) })
+        box.addView(TextView(this).apply { text = getString(R.string.openvpn_transport_label) })
+        box.addView(mode, LinearLayout.LayoutParams(-1, dp(52)))
+        box.addView(port, LinearLayout.LayoutParams(-1, dp(54)))
+        box.addView(mtu, LinearLayout.LayoutParams(-1, dp(54)))
+        box.addView(mss, LinearLayout.LayoutParams(-1, dp(54)))
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.openvpn_transport_assistant)
+            .setView(box)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.openvpn_save_advanced, null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val p = port.text.toString().toIntOrNull()
+                val m = mtu.text.toString().toIntOrNull()
+                val ms = mss.text.toString().toIntOrNull()
+                if (p !in 1..65535 || m !in 1200..9000 || ms !in 500..1460) {
+                    toast(getString(R.string.openvpn_transport_invalid)); return@setOnClickListener
+                }
+                val tcp = mode.selectedItemPosition == 1
+                var updated = config
+                val proto = if (tcp) "tcp-client" else "udp"
+                updated = if (PROTO_RE.containsMatchIn(updated)) PROTO_RE.replaceFirst(updated, "proto $proto")
+                    else "proto $proto\\n" + updated
+                updated = if (REMOTE_PORT_RE.containsMatchIn(updated)) REMOTE_PORT_RE.replaceFirst(updated, "$" + "1" + p)
+                    else REMOTE_RE.replaceFirst(updated) { it.value + " $p" }
+                updated = setDirective(updated, TUN_MTU_RE, "tun-mtu", m.toString())
+                // mssfix is a UDP-side tuning option; remove it for TCP to avoid a misleading setting.
+                updated = if (tcp) MSSFIX_RE.replace(updated, "") else setDirective(updated, MSSFIX_RE, "mssfix", ms.toString())
+                try {
+                    profile.file.writeText(updated, StandardCharsets.UTF_8)
+                    File(folder(), profile.id + ".meta").writeText(
+                        JSONObject().put("name", profile.name)
+                            .put("remote", firstMatch(REMOTE_RE, updated) ?: profile.remote)
+                            .put("proto", proto).toString()
+                    )
+                    dialog.dismiss()
+                    reloadProfiles()
+                    toast(getString(R.string.openvpn_advanced_saved))
+                } catch (error: Exception) {
+                    toast(error.message ?: getString(R.string.openvpn_invalid_profile))
+                }
+            }
+        }
+        dialog.show()
+    }
+
+    private fun setDirective(config: String, regex: Regex, name: String, value: String): String {
+        return if (regex.containsMatchIn(config)) regex.replaceFirst(config, "$name $value")
+        else config.trimEnd() + "\\n$name $value\\n"
+    }
+
     private fun showAdvancedEditor() {
         val profile = profiles.firstOrNull { it.id == selectedId }
         if (profile == null) { toast(getString(R.string.openvpn_choose_profile)); return }
@@ -512,6 +615,9 @@ class OpenVPNActivity : AppCompatActivity() {
         private const val MAX_FILE_BYTES = 5 * 1024 * 1024
         private val REMOTE_RE = Regex("(?im)^[ \\t]*remote[ \\t]+([^ \\t\\r\\n#]+)")
         private val PROTO_RE = Regex("(?im)^[ \\t]*proto[ \\t]+([^ \\t\\r\\n#]+)")
+        private val REMOTE_PORT_RE = Regex("(?im)^[ \\t]*remote[ \\t]+([^ \\t\\r\\n#]+)[ \\t]+([0-9]{1,5})(?:[ \\t]+[^\\r\\n#]+)?")
+        private val TUN_MTU_RE = Regex("(?im)^[ \\t]*tun-mtu[ \\t]+([0-9]+)")
+        private val MSSFIX_RE = Regex("(?im)^[ \\t]*mssfix(?:[ \\t]+([0-9]+))?[^\\r\\n]*")
         private val SIDECAR_RE = Regex("(?im)^[ \\t]*(ca|cert|key|tls-auth|tls-crypt|secret|auth-user-pass)[ \\t]+(?:\\\"([^\\\"]+)\\\"|([^ \\t\\r\\n#]+))(?:[ \\t]+([^ \\t\\r\\n#]+))?[^\\r\\n]*")
         private val UNSUPPORTED_EXTERNAL_RE = Regex("(?im)^[ \\t]*(pkcs12|crl-verify|extra-certs|dh)[ \\t]+(?:\\\"([^\\\"]+)\\\"|([^ \\t\\r\\n#]+))[^\\r\\n]*")
         private val AUTH_USER_PASS_RE = Regex("(?im)^\\s*auth-user-pass\\s*(?:#.*)?")
