@@ -19,7 +19,10 @@ EN = {
 "openvpn_close_other_vpn":"Disconnect the other VPN app first, then retry.","openvpn_permission_denied":"Android VPN permission was not granted.","openvpn_connect_failed":"OpenVPN could not start",
 "openvpn_auth_title":"OpenVPN login","openvpn_username":"Username","openvpn_password":"Password","openvpn_continue":"Continue","openvpn_credentials_invalid":"Enter a username and password without line breaks.",
 "openvpn_license_notice":"Engine: ics-openvpn / OpenVPN 3. Upstream license and source notices are in OPENVPN-NOTICES.md.",
-"select_tunnel":"Select tunnel / البروتوكول","select_dnstt":"DNSTT tunnel","select_openvpn":"OpenVPN tunnel",
+"select_tunnel":"Select tunnel / البروتوكول",
+"add_profile_protocol":"Add profile • choose protocol",
+"add_profile_dnstt":"DNSTT profile",
+"add_profile_openvpn":"OpenVPN .ovpn profile","select_dnstt":"DNSTT tunnel","select_openvpn":"OpenVPN tunnel",
 "openvpn_switch_disconnect_first":"OpenVPN is active. Disconnect it before switching to DNSTT.",
 "openvpn_switch_disconnect_timeout":"OpenVPN is still disconnecting. Wait a moment and switch again.",
 "openvpn_advanced_title":"Advanced OpenVPN settings","openvpn_advanced_help":"Edit the complete .ovpn configuration. All supported OpenVPN directives are preserved. Incorrect settings can prevent connection.",
@@ -51,7 +54,10 @@ AR = {
 "openvpn_close_other_vpn":"افصل تطبيق VPN الآخر أولًا ثم أعد المحاولة.","openvpn_permission_denied":"لم تتم الموافقة على إذن VPN من Android.","openvpn_connect_failed":"تعذر بدء OpenVPN",
 "openvpn_auth_title":"تسجيل دخول OpenVPN","openvpn_username":"اسم المستخدم","openvpn_password":"كلمة المرور","openvpn_continue":"متابعة","openvpn_credentials_invalid":"أدخل اسم المستخدم وكلمة المرور دون أسطر جديدة.",
 "openvpn_license_notice":"المحرك: ics-openvpn / OpenVPN 3. تفاصيل الترخيص والسورس في OPENVPN-NOTICES.md.",
-"select_tunnel":"اختيار النفق / البروتوكول","select_dnstt":"نفق DNSTT","select_openvpn":"نفق OpenVPN",
+"select_tunnel":"اختيار النفق / البروتوكول",
+"add_profile_protocol":"إضافة ملف تعريفي • اختر البروتوكول",
+"add_profile_dnstt":"ملف تعريفي DNSTT",
+"add_profile_openvpn":"ملف OpenVPN ‏.ovpn","select_dnstt":"نفق DNSTT","select_openvpn":"نفق OpenVPN",
 "openvpn_switch_disconnect_first":"نفق OpenVPN متصل. افصله قبل التبديل إلى DNSTT.",
 "openvpn_switch_disconnect_timeout":"ما زال OpenVPN يفصل الاتصال. انتظر قليلًا ثم حاول التبديل.",
 "openvpn_advanced_title":"إعدادات OpenVPN المتقدمة","openvpn_advanced_help":"يمكنك تعديل ملف .ovpn كاملًا مع الحفاظ على توجيهات OpenVPN المدعومة. الإعدادات غير الصحيحة قد تمنع الاتصال.",
@@ -123,6 +129,31 @@ def main_activity(path, menu_path):
         if marker not in src: raise SystemExit("MainActivity options menu dispatch point not found")
         src=src.replace(marker,'''            R.id.m_tunnel -> showTunnelChooser()
             R.id.m_about -> MaterialAlertDialogBuilder(this)''',1)
+    if "R.id.m_add_profile" not in src:
+        marker='''            R.id.m_tunnel -> showTunnelChooser()'''
+        if marker not in src: raise SystemExit("Tunnel menu dispatch point not found")
+        src=src.replace(marker,'''            R.id.m_add_profile -> showAddProfileChooser()
+            R.id.m_tunnel -> showTunnelChooser()''',1)
+    if "private fun showAddProfileChooser()" not in src:
+        marker="    private fun showTunnelChooser() {"
+        if marker not in src: raise SystemExit("Tunnel chooser method not found")
+        method='''    private fun showAddProfileChooser() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.add_profile_protocol)
+            .setItems(arrayOf(getString(R.string.add_profile_dnstt), getString(R.string.add_profile_openvpn))) { _, which ->
+                if (which == 0) {
+                    // Reuse the existing DNSTT add-profile flow and its validation.
+                    findViewById<android.view.View>(R.id.fab)?.performClick()
+                } else {
+                    startActivity(Intent(this, OpenVPNActivity::class.java))
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+'''
+        src=src.replace(marker,method+marker,1)
     if "private fun showTunnelChooser()" not in src:
         marker="    override fun onCreateOptionsMenu(menu: Menu): Boolean {"
         if marker not in src: raise SystemExit("MainActivity options menu method not found")
@@ -140,9 +171,13 @@ def main_activity(path, menu_path):
         src=src.replace(marker,method+marker,1)
     path.write_text(src,encoding="utf-8")
     menu=menu_path.read_text(encoding="utf-8")
+    items=[]
     if '@+id/m_tunnel' not in menu:
-        item='    <item android:id="@+id/m_tunnel" android:title="@string/select_tunnel" android:icon="@drawable/ic_more" app:showAsAction="always" />\n'
-        menu=menu.replace("</menu>",item+"</menu>")
+        items.append('    <item android:id="@+id/m_tunnel" android:title="@string/select_tunnel" android:icon="@drawable/ic_more" app:showAsAction="always" />')
+    if '@+id/m_add_profile' not in menu:
+        items.append('    <item android:id="@+id/m_add_profile" android:title="@string/add_profile_protocol" android:icon="@android:drawable/ic_input_add" app:showAsAction="never" />')
+    if items:
+        menu=menu.replace("</menu>","\\n"+"\\n".join(items)+"\\n</menu>")
         menu_path.write_text(menu,encoding="utf-8")
     ET.parse(menu_path)
 
