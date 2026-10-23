@@ -404,7 +404,7 @@ class OpenVPNActivity : AppCompatActivity() {
                 val p = port.text.toString().toIntOrNull()
                 val m = mtu.text.toString().toIntOrNull()
                 val ms = mss.text.toString().toIntOrNull()
-                if (p !in 1..65535 || m !in 1200..9000 || ms !in 500..1460) {
+                if (p == null || p !in 1..65535 || m == null || m !in 1200..9000 || ms == null || ms !in 500..1460) {
                     toast(getString(R.string.openvpn_transport_invalid)); return@setOnClickListener
                 }
                 val tcp = mode.selectedItemPosition == 1
@@ -413,9 +413,8 @@ class OpenVPNActivity : AppCompatActivity() {
                 updated = if (PROTO_RE.containsMatchIn(updated)) PROTO_RE.replaceFirst(updated, "proto $proto")
                     else "proto $proto\\n" + updated
                 updated = if (REMOTE_PORT_RE.containsMatchIn(updated)) REMOTE_PORT_RE.replaceFirst(updated) { match ->
-                        Regex("([ \\t]+)[0-9]{1,5}([ \\t]*(?:#.*)?)$").replaceFirst(match.value) { tail ->
-                            tail.groupValues[1] + p.toString() + tail.groupValues[2]
-                        }
+                        val relativeStart = match.groups[2]!!.range.first - match.range.first
+                        match.value.replaceRange(relativeStart, relativeStart + match.groupValues[2].length, p.toString())
                     }
                     else REMOTE_RE.replaceFirst(updated) { it.value + " $p" }
                 updated = setDirective(updated, TUN_MTU_RE, "tun-mtu", m.toString())
