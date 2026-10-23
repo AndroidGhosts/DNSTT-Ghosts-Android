@@ -188,6 +188,19 @@ class OpenVPNActivity : AppCompatActivity() {
             .setMessage(getString(R.string.openvpn_confirm_delete, profile.name))
             .setNegativeButton(R.string.cancel, null)
             .setPositiveButton(R.string.delete) { _, _ ->
+                // Remove app-private credentials alongside the profile.
+                File(folder(), "auth-" + profile.id + ".txt").delete()
+                runCatching {
+                    val savedConfig = profile.file.readText(StandardCharsets.UTF_8)
+                    val authPath = Regex("(?im)^[ \\t]*auth-user-pass[ \\t]+([^ \\t\\r\\n#]+)")
+                        .find(savedConfig)?.groupValues?.getOrNull(1)
+                    if (authPath != null) {
+                        val authFile = File(authPath)
+                        if (authFile.canonicalFile.parentFile == folder().canonicalFile &&
+                            authFile.name.startsWith("auth-") && authFile.extension == "txt"
+                        ) authFile.delete()
+                    }
+                }
                 profile.file.delete()
                 File(folder(), profile.id + ".meta").delete()
                 if (selectedId == profile.id) selectedId = null
