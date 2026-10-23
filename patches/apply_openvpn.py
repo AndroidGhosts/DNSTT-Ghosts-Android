@@ -189,7 +189,7 @@ def main_activity(path, menu_path):
     if '@+id/m_openvpn_settings' not in menu:
         items.append('    <item android:id="@+id/m_openvpn_settings" android:title="@string/openvpn_settings_menu" app:showAsAction="never" />')
     if items:
-        menu=menu.replace("</menu>","\\n"+"\\n".join(items)+"\\n</menu>")
+        menu=menu.replace("</menu>","\n"+"\n".join(items)+"\n</menu>")
         menu_path.write_text(menu,encoding="utf-8")
     ET.parse(menu_path)
 
