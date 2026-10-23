@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.net.VpnService
 import android.os.IBinder
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import de.blinkt.openvpn.VpnProfile
 import de.blinkt.openvpn.core.ConfigParser
@@ -27,7 +29,17 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
     @Volatile var downloadBytes = 0L; private set
     @Volatile var uploadBytes = 0L; private set
     @Volatile var currentProfileName = ""; private set
+    @Volatile var lastError = ""; private set
     private lateinit var appContext: Context
+    private val timeoutHandler = Handler(Looper.getMainLooper())
+    private val connectionTimeout = Runnable {
+        if (state == "CONNECTING") {
+            failed = true
+            lastError = "timeout"
+            Log.w(TAG, "OpenVPN connection deadline reached; stopping pending connection")
+            disconnect(appContext)
+        }
+    }
     @Volatile private var initialized = false
 
     @Synchronized fun initialize(context: Context) {
@@ -44,11 +56,14 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
             "Stop the DNSTT tunnel before starting OpenVPN. Android permits only one active VPN tunnel."
         }
         check(VpnService.prepare(context) == null) { "Android VPN permission has not been granted yet." }
-        state = "CONNECTING"; failed = false; downloadBytes = 0L; uploadBytes = 0L
+        timeoutHandler.removeCallbacks(connectionTimeout)
+        state = "CONNECTING"; failed = false; lastError = ""; downloadBytes = 0L; uploadBytes = 0L
         currentProfileName = profileName
+        timeoutHandler.postDelayed(connectionTimeout, CONNECTION_DEADLINE_MS)
         try {
+            val boundedConfig = applyConnectionLimits(configText)
             val profile: VpnProfile = ConfigParser().run {
-                parseConfig(StringReader(configText))
+                parseConfig(StringReader(boundedConfig))
                 convertProfile()
             }
             require(!needsKeystoreCertificate(profile)) {
@@ -61,10 +76,19 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
             VPNLaunchHelper.startOpenVpn(profile, appContext, "android_ghosts_openvpn", false)
             Log.i(TAG, "OpenVPN start requested; profile contents are not logged")
         } catch (error: Exception) {
-            state = "DISCONNECTED"; failed = true
+            timeoutHandler.removeCallbacks(connectionTimeout)
+            state = "DISCONNECTED"; failed = true; lastError = "start_failed"
             Log.e(TAG, "OpenVPN connect failed", error)
             throw error
         }
+    }
+
+    /** Replace unbounded retry directives while preserving the rest of the imported profile. */
+    private fun applyConnectionLimits(config: String): String {
+        val withoutOverrides = config.lineSequence()
+            .filterNot { line -> line.trimStart().matches(Regex("(?i)^(connect-retry|connect-retry-max|connect-timeout)(\\s+.*)?$")) }
+            .joinToString("\n")
+        return withoutOverrides.trimEnd() + "\nconnect-timeout 10\nconnect-retry 5 15\nconnect-retry-max 3\n"
     }
 
     private fun needsKeystoreCertificate(profile: VpnProfile): Boolean = when (profile.mAuthenticationType) {
@@ -75,6 +99,7 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
     fun disconnect(context: Context) {
         initialize(context)
         if (state == "DISCONNECTED") return
+        timeoutHandler.removeCallbacks(connectionTimeout)
         state = "DISCONNECTING"; downloadBytes = 0L; uploadBytes = 0L
         val serviceIntent = Intent(appContext, OpenVPNService::class.java).apply { action = OpenVPNService.START_SERVICE }
         val connection = object : ServiceConnection {
@@ -102,9 +127,9 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
         level: IcsStatus?, intent: Intent?,
     ) {
         when (level) {
-            IcsStatus.LEVEL_CONNECTED -> { this.state = "CONNECTED"; failed = false }
-            IcsStatus.LEVEL_NOTCONNECTED -> this.state = "DISCONNECTED"
-            IcsStatus.LEVEL_AUTH_FAILED -> { this.state = "DISCONNECTED"; failed = true }
+            IcsStatus.LEVEL_CONNECTED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "CONNECTED"; failed = false; lastError = "" }
+            IcsStatus.LEVEL_NOTCONNECTED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "DISCONNECTED" }
+            IcsStatus.LEVEL_AUTH_FAILED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "DISCONNECTED"; failed = true; lastError = "auth" }
             IcsStatus.LEVEL_START,
             IcsStatus.LEVEL_CONNECTING_SERVER_REPLIED,
             IcsStatus.LEVEL_CONNECTING_NO_SERVER_REPLY_YET,
@@ -114,6 +139,8 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
         }
     }
     override fun setConnectedVPN(uuid: String?) = Unit
+    private const val CONNECTION_DEADLINE_MS = 45_000L
+
     override fun updateByteCount(inBytes: Long, outBytes: Long, diffIn: Long, diffOut: Long) {
         downloadBytes = inBytes.coerceAtLeast(0L)
         uploadBytes = outBytes.coerceAtLeast(0L)
