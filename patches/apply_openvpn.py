@@ -23,7 +23,7 @@ EN = {
 "add_profile_protocol":"Add profile • choose protocol",
 "add_profile_dnstt":"DNSTT profile",
 "add_profile_openvpn":"OpenVPN .ovpn profile",
-"openvpn_settings_menu":"OpenVPN settings","select_dnstt":"DNSTT tunnel","select_openvpn":"OpenVPN tunnel",
+"openvpn_settings_menu":"OpenVPN settings","select_dnstt":"DNSTT tunnel","select_openvpn":"OpenVPN tunnel","logs_title":"Logs / سجل التشغيل",
 "openvpn_switch_disconnect_first":"OpenVPN is active. Disconnect it before switching to DNSTT.",
 "openvpn_switch_disconnect_timeout":"OpenVPN is still disconnecting. Wait a moment and switch again.",
 "openvpn_advanced_title":"Advanced OpenVPN settings","openvpn_advanced_help":"Edit the complete .ovpn configuration. All supported OpenVPN directives are preserved. Incorrect settings can prevent connection.",
@@ -59,7 +59,7 @@ AR = {
 "add_profile_protocol":"إضافة ملف تعريفي • اختر البروتوكول",
 "add_profile_dnstt":"ملف تعريفي DNSTT",
 "add_profile_openvpn":"ملف OpenVPN ‏.ovpn",
-"openvpn_settings_menu":"إعدادات OpenVPN","select_dnstt":"نفق DNSTT","select_openvpn":"نفق OpenVPN",
+"openvpn_settings_menu":"إعدادات OpenVPN","select_dnstt":"نفق DNSTT","select_openvpn":"نفق OpenVPN","logs_title":"سجل التشغيل",
 "openvpn_switch_disconnect_first":"نفق OpenVPN متصل. افصله قبل التبديل إلى DNSTT.",
 "openvpn_switch_disconnect_timeout":"ما زال OpenVPN يفصل الاتصال. انتظر قليلًا ثم حاول التبديل.",
 "openvpn_advanced_title":"إعدادات OpenVPN المتقدمة","openvpn_advanced_help":"يمكنك تعديل ملف .ovpn كاملًا مع الحفاظ على توجيهات OpenVPN المدعومة. الإعدادات غير الصحيحة قد تمنع الاتصال.",
@@ -147,6 +147,11 @@ def main_activity(path, menu_path):
         if marker not in src: raise SystemExit("MainActivity options menu dispatch point not found")
         src=src.replace(marker,'''            R.id.m_tunnel -> showTunnelChooser()
             R.id.m_about -> MaterialAlertDialogBuilder(this)''',1)
+    if "R.id.m_logs" not in src:
+        marker='''            R.id.m_about -> MaterialAlertDialogBuilder(this)'''
+        if marker not in src: raise SystemExit("MainActivity logs dispatch insertion point not found")
+        src=src.replace(marker,'''            R.id.m_logs -> { startActivity(Intent(this, LogActivity::class.java)); true }
+            R.id.m_about -> MaterialAlertDialogBuilder(this)''',1)
     # Protocol choice is the only tunnel-related top-menu item. Profile import
     # remains inside the relevant protocol screen; do not duplicate actions here.
     src = re.sub(r'^\s*R\.id\.m_add_profile\s*->.*\n', '', src, flags=re.M)
@@ -194,6 +199,8 @@ def main_activity(path, menu_path):
     items=[]
     if '@+id/m_tunnel' not in menu:
         items.append('    <item android:id="@+id/m_tunnel" android:title="@string/select_tunnel" android:icon="@drawable/ic_more" app:showAsAction="never" />')
+    if '@+id/m_logs' not in menu:
+        items.append('    <item android:id="@+id/m_logs" android:title="@string/logs_title" app:showAsAction="never" />')
     # Clean up duplicate protocol/profile entries from older generated menus.
     menu = re.sub(r'\s*<item\b(?=[^>]*android:id="@\+id/(?:m_add_profile|m_openvpn_settings)")(?=[^>]*>)[^>]*/>', '', menu)
     if items:
