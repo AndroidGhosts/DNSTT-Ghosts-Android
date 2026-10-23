@@ -2,7 +2,7 @@ name: Build DNSTT Ghosts APK (ARM64)
 
 on:
   push:
-    branches: [main]
+    branches: [main, openvpn-integration]
   workflow_dispatch:
 
 permissions:
@@ -15,6 +15,19 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - name: Fetch and verify pinned OpenVPN engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          OPENVPN_REPO="${GITHUB_WORKSPACE}/openvpn_dart"
+          git clone --no-checkout https://github.com/mysteriumnetwork/openvpn_dart.git "$OPENVPN_REPO"
+          git -C "$OPENVPN_REPO" checkout --detach 260c4445c4180af04f9a8bf2752d485b0b113a63
+          test "$(git -C "$OPENVPN_REPO" rev-parse HEAD)" = "260c4445c4180af04f9a8bf2752d485b0b113a63"
+          AAR="$OPENVPN_REPO/android/localmaven/network/mysterium/openvpn/icsopenvpn/0.7.55-myst/icsopenvpn-0.7.55-myst.aar"
+          test -s "$AAR"
+          echo "3540c8579b0056baac517cb6c930d9d9fb19cbbdf6216e4353fce5513aee50f6  $AAR" | sha256sum --check -
+          echo "Pinned OpenVPN engine verified against provenance SHA-256."
 
       - name: Locate and extract uploaded source ZIP
         shell: bash
@@ -353,6 +366,12 @@ jobs:
           print("Arabic brand labels verified; missing translations were added without replacing existing strings.")
           PY
 
+      - name: Apply OpenVPN profile manager
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 "${GITHUB_WORKSPACE}/patches/apply_openvpn.py" "$PROJECT_DIR" "${GITHUB_WORKSPACE}/patches"
+
       - name: Preflight Android resources and custom views
         shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
@@ -406,7 +425,7 @@ jobs:
                   if not any(r.exists() and any(p.name == f"{class_name}.kt" or p.name == f"{class_name}.java" for p in r.rglob("*")) for r in source_roots):
                       raise SystemExit(f"Custom view class source not found: {view}")
 
-          required = {"toolbar", "telegramLink", "connectButton", "connectText", "statusText",
+          required = {"toolbar", "telegramLink", "openVpnButton", "connectButton", "connectText", "statusText",
                       "profileText", "statsGrid", "trafficChart", "chartSummary",
                       "chartWindowButton", "profileList", "testButton", "fab", "emptyText"}
           ids = {v.attrib.get("{http://schemas.android.com/apk/res/android}id", "").split("/")[-1]
@@ -416,23 +435,6 @@ jobs:
               raise SystemExit("Missing Activity view IDs: " + ", ".join(missing_ids))
           print(f"Preflight passed: XML, {len(strings)} localized string names, custom view sources, and {len(required)} Activity IDs.")
           PY
-
-      - name: Package patched project source for integration audit
-        shell: bash
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          set -euo pipefail
-          tar --exclude='./.git' --exclude='./.gradle' --exclude='*/build' --exclude='**/build' -czf "${GITHUB_WORKSPACE}/dnstt-source-audit.tar.gz" .
-          test -s "${GITHUB_WORKSPACE}/dnstt-source-audit.tar.gz"
-          ls -lh "${GITHUB_WORKSPACE}/dnstt-source-audit.tar.gz"
-
-      - name: Upload source audit bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: DNSTT-Ghosts-SOURCE-AUDIT
-          path: dnstt-source-audit.tar.gz
-          if-no-files-found: error
-          retention-days: 3
 
       - name: Build ARM64 APK for Samsung Galaxy A56
         shell: bash

@@ -1,0 +1,420 @@
+package com.androidghosts.dnsttghosts
+
+import android.content.Context
+import android.content.Intent
+import android.database.Cursor
+import android.graphics.Color
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.Uri
+import android.net.VpnService
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.provider.OpenableColumns
+import android.text.InputType
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import ghostcore.Ghostcore
+import org.json.JSONObject
+import java.io.File
+import java.nio.charset.StandardCharsets
+import java.util.Locale
+import java.util.UUID
+
+/** Ready .ovpn import/connect screen. The DNSTT service and profiles remain separate. */
+class OpenVPNActivity : AppCompatActivity() {
+    private data class Profile(val id: String, val name: String, val remote: String, val proto: String, val file: File)
+    private data class Document(val name: String, val text: String?)
+
+    private lateinit var status: TextView
+    private lateinit var traffic: TextView
+    private lateinit var empty: TextView
+    private lateinit var list: LinearLayout
+    private lateinit var importButton: MaterialButton
+    private lateinit var connectButton: MaterialButton
+    private lateinit var disconnectButton: MaterialButton
+    private val handler = Handler(Looper.getMainLooper())
+    private var profiles = emptyList<Profile>()
+    private var selectedId: String? = null
+    private var pendingName = ""
+    private var pendingConfig = ""
+
+    private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (!uris.isNullOrEmpty()) importProfiles(uris)
+    }
+    private val consentLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK && pendingConfig.isNotBlank()) startTunnel(pendingName, pendingConfig)
+        else { pendingName = ""; pendingConfig = ""; toast(getString(R.string.openvpn_permission_denied)) }
+    }
+    private val ticker = object : Runnable {
+        override fun run() { refreshState(); handler.postDelayed(this, 900) }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        window.statusBarColor = Color.rgb(12, 21, 16)
+        window.navigationBarColor = Color.rgb(7, 13, 10)
+        setContentView(R.layout.activity_openvpn)
+        status = findViewById(R.id.openVpnStatusView)
+        traffic = findViewById(R.id.openVpnTrafficView)
+        empty = findViewById(R.id.openVpnEmptyView)
+        list = findViewById(R.id.openVpnProfileList)
+        importButton = findViewById(R.id.openVpnImportButton)
+        connectButton = findViewById(R.id.openVpnConnectButton)
+        disconnectButton = findViewById(R.id.openVpnDisconnectButton)
+        findViewById<MaterialToolbar>(R.id.openVpnToolbar).setNavigationOnClickListener { finish() }
+        importButton.setOnClickListener { importLauncher.launch(arrayOf("*/*")) }
+        connectButton.setOnClickListener { connectSelected() }
+        disconnectButton.setOnClickListener { OpenVPNEngine.disconnect(applicationContext); refreshState() }
+        OpenVPNEngine.initialize(applicationContext)
+        selectedId = getSharedPreferences(PREFS, MODE_PRIVATE).getString(KEY_SELECTED, null)
+        reloadProfiles()
+        refreshState()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        reloadProfiles()
+        handler.removeCallbacks(ticker)
+        handler.post(ticker)
+    }
+    override fun onPause() {
+        handler.removeCallbacks(ticker)
+        super.onPause()
+    }
+
+    private fun folder() = File(filesDir, "openvpn-profiles").apply { mkdirs() }
+
+    private fun reloadProfiles() {
+        profiles = folder().listFiles { f -> f.isFile && f.extension.equals("ovpn", true) }.orEmpty().mapNotNull { f ->
+            runCatching {
+                val metaFile = File(folder(), f.nameWithoutExtension + ".meta")
+                val meta = if (metaFile.isFile) JSONObject(metaFile.readText()) else JSONObject()
+                val config = f.readText()
+                Profile(
+                    f.nameWithoutExtension,
+                    meta.optString("name", f.name),
+                    meta.optString("remote", firstMatch(REMOTE_RE, config) ?: getString(R.string.openvpn_profile_detail)),
+                    meta.optString("proto", firstMatch(PROTO_RE, config) ?: "udp"),
+                    f
+                )
+            }.getOrNull()
+        }.sortedBy { it.name.lowercase(Locale.ROOT) }
+        if (profiles.none { it.id == selectedId }) selectedId = profiles.firstOrNull()?.id
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(KEY_SELECTED, selectedId).apply()
+        renderProfiles()
+    }
+
+    private fun renderProfiles() {
+        list.removeAllViews()
+        empty.visibility = if (profiles.isEmpty()) View.VISIBLE else View.GONE
+        profiles.forEach { profile ->
+            val selected = profile.id == selectedId
+            val card = MaterialCardView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) }
+                radius = dp(16).toFloat()
+                cardElevation = 0f
+                setCardBackgroundColor(Color.rgb(13, 23, 17))
+                strokeWidth = dp(if (selected) 2 else 1)
+                setStrokeColor(Color.parseColor(if (selected) "#FF39FF14" else "#5555AA66"))
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    selectedId = profile.id
+                    getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(KEY_SELECTED, selectedId).apply()
+                    renderProfiles(); refreshState()
+                }
+            }
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(13), dp(9), dp(8), dp(9))
+            }
+            val texts = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
+            }
+            texts.addView(TextView(this).apply {
+                text = profile.name; textSize = 14f
+                setTextColor(Color.parseColor(if (selected) "#FF39FF14" else "#FFE7F5E9"))
+            })
+            texts.addView(TextView(this).apply {
+                text = profile.remote + "  •  " + profile.proto.uppercase(Locale.ROOT)
+                textSize = 12f; setTextColor(Color.rgb(153, 177, 159)); setPadding(0, dp(4), 0, 0)
+            })
+            row.addView(texts)
+            row.addView(TextView(this).apply {
+                text = "×"; textSize = 24f; gravity = Gravity.CENTER
+                minWidth = dp(48); minHeight = dp(48)
+                setTextColor(Color.rgb(255, 120, 120))
+                contentDescription = getString(R.string.openvpn_delete_profile)
+                setOnClickListener { deleteProfile(profile) }
+            })
+            card.addView(row)
+            list.addView(card)
+        }
+        refreshState()
+    }
+
+    private fun deleteProfile(profile: Profile) {
+        if (OpenVPNEngine.state != "DISCONNECTED") {
+            toast(getString(R.string.openvpn_disconnect_before_delete)); return
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.openvpn_delete_profile)
+            .setMessage(getString(R.string.openvpn_confirm_delete, profile.name))
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.delete) { _, _ ->
+                profile.file.delete()
+                File(folder(), profile.id + ".meta").delete()
+                if (selectedId == profile.id) selectedId = null
+                reloadProfiles()
+            }.show()
+    }
+
+    private fun importProfiles(uris: List<Uri>) {
+        importButton.isEnabled = false
+        Thread {
+            try {
+                val documents = uris.map { readDocument(it) }
+                val configs = documents.filter { it.name.endsWith(".ovpn", true) || it.name.endsWith(".conf", true) }
+                require(configs.isNotEmpty()) { getString(R.string.openvpn_select_config) }
+                val saved = configs.map { document ->
+                    val text = document.text ?: throw IllegalArgumentException(getString(R.string.openvpn_read_failed, document.name))
+                    val complete = inlineSidecars(text, documents.filter { it.name != document.name })
+                    validateConfig(complete)
+                    saveProfile(document.name, complete)
+                }
+                runOnUiThread {
+                    selectedId = saved.firstOrNull()?.id ?: selectedId
+                    reloadProfiles()
+                    toast(getString(R.string.openvpn_import_count, saved.size))
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle(R.string.openvpn_import_failed)
+                        .setMessage(error.message ?: getString(R.string.openvpn_invalid_profile))
+                        .setPositiveButton(R.string.ok, null).show()
+                }
+            } finally { runOnUiThread { importButton.isEnabled = true } }
+        }.start()
+    }
+
+    private fun readDocument(uri: Uri): Document {
+        val displayName = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null).use { cursor: Cursor? ->
+            if (cursor != null && cursor.moveToFirst()) cursor.getString(0) else null
+        } ?: uri.lastPathSegment?.substringAfterLast('/') ?: "imported-file"
+        val bytes = contentResolver.openInputStream(uri)?.use { input ->
+            val out = java.io.ByteArrayOutputStream()
+            val buf = ByteArray(8192)
+            var total = 0
+            while (true) {
+                val n = input.read(buf)
+                if (n < 0) break
+                total += n
+                require(total <= MAX_FILE_BYTES) { getString(R.string.openvpn_file_too_large, displayName) }
+                out.write(buf, 0, n)
+            }
+            out.toByteArray()
+        } ?: throw IllegalArgumentException(getString(R.string.openvpn_read_failed, displayName))
+        val isBinary = displayName.endsWith(".p12", true) || displayName.endsWith(".pfx", true) || bytes.take(2048).any { it == 0.toByte() }
+        return Document(displayName, if (isBinary) null else String(bytes, StandardCharsets.UTF_8))
+    }
+
+    private fun inlineSidecars(config: String, docs: List<Document>): String {
+        val lookup = docs.groupBy { it.name.substringAfterLast('/').lowercase(Locale.ROOT) }
+        val missing = linkedSetOf<String>()
+        val result = SIDECAR_RE.replace(config) { match ->
+            val directive = match.groupValues[1].lowercase(Locale.ROOT)
+            val referenced = match.groupValues[2].ifBlank { match.groupValues[3] }
+            val option = match.groupValues[4]
+            val sidecar = lookup[referenced.substringAfterLast('/').lowercase(Locale.ROOT)].orEmpty().singleOrNull()
+            if (sidecar == null) {
+                missing += referenced
+                match.value
+            } else if (sidecar.text == null) {
+                missing += referenced + " (binary file)"
+                match.value
+            } else {
+                val content = sidecar.text.trim()
+                when (directive) {
+                    "auth-user-pass" -> {
+                        val lines = content.lines()
+                        if (lines.size < 2 || lines[0].isBlank()) { missing += referenced; match.value }
+                        else "<auth-user-pass>\n" + lines[0] + "\n" + lines[1] + "\n</auth-user-pass>"
+                    }
+                    else -> {
+                        if (content.isBlank()) { missing += referenced; match.value }
+                        else {
+                            val block = "<" + directive + ">\n" + content + "\n</" + directive + ">"
+                            if (directive == "tls-auth" && option.isNotBlank()) block + "\nkey-direction " + option else block
+                        }
+                    }
+                }
+            }
+        }
+        val unsupported = UNSUPPORTED_EXTERNAL_RE.findAll(result).map { it.value.trim() }.toList()
+        missing.addAll(unsupported)
+        require(missing.isEmpty()) {
+            getString(R.string.openvpn_sidecars_missing, missing.take(6).joinToString(", "))
+        }
+        return result
+    }
+
+    private fun validateConfig(config: String) {
+        require(config.isNotBlank() && !config.startsWith("PK\u0003\u0004")) { getString(R.string.openvpn_invalid_profile) }
+        require(REMOTE_RE.containsMatchIn(config)) { getString(R.string.openvpn_no_remote) }
+        require(!Regex("(?im)^\\s*(?:server|tls-server)\\s*$").containsMatchIn(config)) {
+            getString(R.string.openvpn_server_config)
+        }
+        require(!UNSUPPORTED_EXTERNAL_RE.containsMatchIn(config)) {
+            getString(R.string.openvpn_sidecars_missing, UNSUPPORTED_EXTERNAL_RE.find(config)?.value ?: "")
+        }
+    }
+
+    private fun saveProfile(originalName: String, config: String): Profile {
+        val id = UUID.randomUUID().toString()
+        val name = originalName.substringAfterLast('/').substringBeforeLast('.').ifBlank { "OpenVPN profile" }.take(80)
+        val file = File(folder(), id + ".ovpn")
+        val remote = firstMatch(REMOTE_RE, config) ?: "OpenVPN profile"
+        val proto = firstMatch(PROTO_RE, config) ?: "udp"
+        file.writeText(config, StandardCharsets.UTF_8)
+        File(folder(), id + ".meta").writeText(JSONObject().put("name", name).put("remote", remote).put("proto", proto).toString())
+        return Profile(id, name, remote, proto, file)
+    }
+
+    private fun connectSelected() {
+        val p = profiles.firstOrNull { it.id == selectedId }
+        if (p == null) { toast(getString(R.string.openvpn_choose_profile)); return }
+        if (OpenVPNEngine.state != "DISCONNECTED") { toast(getString(R.string.openvpn_already_active)); return }
+        if (GhostVpnService.running || Ghostcore.isRunning()) {
+            MaterialAlertDialogBuilder(this).setTitle(R.string.openvpn_vpn_conflict_title)
+                .setMessage(R.string.openvpn_stop_dnstt_first).setPositiveButton(R.string.ok, null).show()
+            return
+        }
+        val cm = getSystemService(ConnectivityManager::class.java)
+        val anotherVpn = cm.allNetworks.any { cm.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true }
+        if (anotherVpn) {
+            MaterialAlertDialogBuilder(this).setTitle(R.string.openvpn_vpn_conflict_title)
+                .setMessage(R.string.openvpn_close_other_vpn).setPositiveButton(R.string.ok, null).show()
+            return
+        }
+        val config = runCatching { p.file.readText(StandardCharsets.UTF_8) }
+            .getOrElse { toast(getString(R.string.openvpn_read_failed, p.name)); return }
+        if (AUTH_USER_PASS_RE.containsMatchIn(config) && !INLINE_AUTH_RE.containsMatchIn(config)) askCredentials(p.name, config)
+        else requestVpnConsent(p.name, config)
+    }
+
+    private fun askCredentials(name: String, config: String) {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(22), dp(8), dp(22), 0) }
+        val user = EditText(this).apply {
+            hint = getString(R.string.openvpn_username); setSingleLine(true)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PERSON_NAME
+        }
+        val pass = EditText(this).apply {
+            hint = getString(R.string.openvpn_password); setSingleLine(true)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        box.addView(user, LinearLayout.LayoutParams(-1, dp(54)))
+        box.addView(pass, LinearLayout.LayoutParams(-1, dp(54)))
+        val dialog = MaterialAlertDialogBuilder(this).setTitle(R.string.openvpn_auth_title).setView(box)
+            .setNegativeButton(R.string.cancel, null).setPositiveButton(R.string.openvpn_continue, null).create()
+        dialog.setOnShowListener {
+            dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val u = user.text.toString(); val p = pass.text.toString()
+                if (u.isBlank() || p.isBlank() || u.contains('\n') || u.contains('\r') || p.contains('\n') || p.contains('\r')) {
+                    toast(getString(R.string.openvpn_credentials_invalid)); return@setOnClickListener
+                }
+                val inline = AUTH_USER_PASS_RE.replace(config) {
+                    "<auth-user-pass>\n" + u + "\n" + p + "\n</auth-user-pass>"
+                }
+                dialog.dismiss()
+                requestVpnConsent(name, inline)
+            }
+        }
+        dialog.show()
+    }
+
+    private fun requestVpnConsent(name: String, config: String) {
+        pendingName = name; pendingConfig = config
+        val consent = VpnService.prepare(this)
+        if (consent == null) startTunnel(name, config) else consentLauncher.launch(consent)
+    }
+
+    private fun startTunnel(name: String, config: String) {
+        pendingName = ""; pendingConfig = ""
+        connectButton.isEnabled = false; importButton.isEnabled = false
+        status.setText(R.string.openvpn_connecting)
+        Thread {
+            try {
+                OpenVPNEngine.connect(applicationContext, name, config)
+                runOnUiThread { refreshState() }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    MaterialAlertDialogBuilder(this).setTitle(R.string.openvpn_connect_failed)
+                        .setMessage(error.message ?: getString(R.string.openvpn_invalid_profile))
+                        .setPositiveButton(R.string.ok, null).show()
+                    refreshState()
+                }
+            } finally { runOnUiThread { importButton.isEnabled = true } }
+        }.start()
+    }
+
+    private fun refreshState() {
+        val s = OpenVPNEngine.state
+        status.text = when {
+            OpenVPNEngine.failed -> getString(R.string.openvpn_failed)
+            s == "CONNECTED" -> getString(R.string.openvpn_connected) + " • " + OpenVPNEngine.currentProfileName
+            s == "CONNECTING" -> getString(R.string.openvpn_connecting)
+            s == "DISCONNECTING" -> getString(R.string.openvpn_disconnecting)
+            else -> getString(R.string.openvpn_disconnected)
+        }
+        status.setTextColor(when {
+            OpenVPNEngine.failed -> Color.rgb(255, 120, 120)
+            s == "CONNECTED" -> Color.parseColor("#FF39FF14")
+            s == "CONNECTING" || s == "DISCONNECTING" -> Color.rgb(255, 202, 40)
+            else -> Color.rgb(153, 177, 159)
+        })
+        traffic.text = getString(R.string.openvpn_traffic, formatBytes(OpenVPNEngine.downloadBytes), formatBytes(OpenVPNEngine.uploadBytes))
+        val busy = s != "DISCONNECTED"
+        connectButton.isEnabled = !busy && profiles.isNotEmpty()
+        disconnectButton.isEnabled = busy
+        importButton.isEnabled = !busy
+    }
+
+    private fun formatBytes(bytes: Long): String {
+        if (bytes < 1024) return bytes.toString() + " B"
+        var value = bytes.toDouble(); var index = -1
+        val units = arrayOf("KB", "MB", "GB", "TB")
+        do { value /= 1024.0; index++ } while (value >= 1024.0 && index < units.lastIndex)
+        return String.format(Locale.ROOT, "%.1f %s", value, units[index.coerceAtMost(units.lastIndex)])
+    }
+    private fun firstMatch(regex: Regex, value: String): String? = regex.find(value)?.groupValues?.getOrNull(1)?.trim()?.takeIf { it.isNotBlank() }
+    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+    private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+
+    companion object {
+        private const val PREFS = "openvpn_profiles"
+        private const val KEY_SELECTED = "selected_id"
+        private const val MAX_FILE_BYTES = 5 * 1024 * 1024
+        private val REMOTE_RE = Regex("(?im)^\\s*remote\\s+([^\\s#]+)")
+        private val PROTO_RE = Regex("(?im)^\\s*proto\\s+([^\\s#]+)")
+        private val SIDECAR_RE = Regex("(?im)^\\s*(ca|cert|key|tls-auth|tls-crypt|secret|auth-user-pass)\\s+(?:\"([^\"]+)\"|([^\\s#]+))(?:\\s+([^\\s#]+))?[^\\n]*")
+        private val UNSUPPORTED_EXTERNAL_RE = Regex("(?im)^\\s*(pkcs12|crl-verify|extra-certs|dh)\\s+(?:\"([^\"]+)\"|([^\\s#]+))[^\\n]*")
+        private val AUTH_USER_PASS_RE = Regex("(?im)^\\s*auth-user-pass\\s*(?:#.*)?")
+        private val INLINE_AUTH_RE = Regex("(?is)<auth-user-pass>.*?</auth-user-pass>")
+    }
+}
