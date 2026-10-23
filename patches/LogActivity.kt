@@ -5,6 +5,8 @@ import android.content.ClipboardManager
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
@@ -22,6 +24,15 @@ class LogActivity : AppCompatActivity() {
     private lateinit var logText: TextView
     private lateinit var scroll: ScrollView
     private var currentLines: List<String> = emptyList()
+    private val refreshHandler = Handler(Looper.getMainLooper())
+    private val refreshRunnable = object : Runnable {
+        override fun run() {
+            if (isFinishing || isDestroyed) return
+            currentLines = combinedLogs()
+            renderLogs()
+            refreshHandler.postDelayed(this, 1000L)
+        }
+    }
     private val accent = Color.rgb(57, 255, 20)
     private val bg = Color.rgb(7, 13, 10)
     private val panel = Color.rgb(13, 23, 17)
@@ -43,6 +54,7 @@ class LogActivity : AppCompatActivity() {
         currentLines = LogBuffer.all().lineSequence().filter(String::isNotBlank).toList()
         renderLogs()
         LogBuffer.listen(listener)
+        refreshHandler.postDelayed(refreshRunnable, 1000L)
     }
 
     private fun combinedLogs(): List<String> {
@@ -183,6 +195,7 @@ class LogActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        refreshHandler.removeCallbacks(refreshRunnable)
         LogBuffer.unlisten(listener)
         super.onDestroy()
     }
