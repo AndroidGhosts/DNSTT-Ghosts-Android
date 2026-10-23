@@ -297,8 +297,10 @@ class OpenVPNActivity : AppCompatActivity() {
     }
 
     /** OpenVPN expects auth-user-pass to point to a credentials file; it does not accept an inline XML-like block. */
-    private fun writeAuthCredentials(username: String, password: String): File {
-        val file = File(folder(), "auth-" + UUID.randomUUID().toString() + ".txt")
+    private fun writeAuthCredentials(username: String, password: String, profileId: String? = null): File {
+        // Keep credentials in app-private storage, stable per profile so they survive reconnects.
+        // The OS sandbox prevents other ordinary apps from reading this file.
+        val file = File(folder(), profileId?.let { "auth-$it.txt" } ?: ("auth-" + UUID.randomUUID().toString() + ".txt"))
         file.writeText(username + "\n" + password + "\n", StandardCharsets.UTF_8)
         file.setReadable(false, false)
         file.setWritable(false, false)
@@ -535,18 +537,23 @@ class OpenVPNActivity : AppCompatActivity() {
         }
         val config = runCatching { p.file.readText(StandardCharsets.UTF_8) }
             .getOrElse { toast(getString(R.string.openvpn_read_failed, p.name)); return }
-        if (AUTH_USER_PASS_RE.containsMatchIn(config) && !INLINE_AUTH_RE.containsMatchIn(config)) askCredentials(p.name, config)
+        if (AUTH_USER_PASS_RE.containsMatchIn(config) && !INLINE_AUTH_RE.containsMatchIn(config)) askCredentials(p.id, p.name, config)
         else requestVpnConsent(p.name, config)
     }
 
-    private fun askCredentials(name: String, config: String) {
+    private fun askCredentials(profileId: String, name: String, config: String) {
+        val savedCredentials = runCatching {
+            File(folder(), "auth-$profileId.txt").takeIf { it.isFile }?.readLines(StandardCharsets.UTF_8)
+        }.getOrNull()
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(22), dp(8), dp(22), 0) }
         val user = EditText(this).apply {
             hint = getString(R.string.openvpn_username); setSingleLine(true)
+            setText(savedCredentials?.getOrNull(0).orEmpty())
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PERSON_NAME
         }
         val pass = EditText(this).apply {
             hint = getString(R.string.openvpn_password); setSingleLine(true)
+            setText(savedCredentials?.getOrNull(1).orEmpty())
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         }
         box.addView(user, LinearLayout.LayoutParams(-1, dp(54)))
@@ -559,7 +566,7 @@ class OpenVPNActivity : AppCompatActivity() {
                 if (u.isBlank() || p.isBlank() || u.contains('\n') || u.contains('\r') || p.contains('\n') || p.contains('\r')) {
                     toast(getString(R.string.openvpn_credentials_invalid)); return@setOnClickListener
                 }
-                val credentialFile = writeAuthCredentials(u, p)
+                val credentialFile = writeAuthCredentials(u, p, profileId)
                 val inline = AUTH_USER_PASS_RE.replace(config) {
                     "auth-user-pass " + credentialFile.absolutePath
                 }
