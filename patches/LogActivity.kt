@@ -29,7 +29,7 @@ class LogActivity : AppCompatActivity() {
 
     private val listener: (String) -> Unit = {
         runOnUiThread {
-            currentLines = LogBuffer.all().lineSequence().filter(String::isNotBlank).toList()
+            currentLines = combinedLogs()
             renderLogs()
         }
     }
@@ -43,6 +43,18 @@ class LogActivity : AppCompatActivity() {
         currentLines = LogBuffer.all().lineSequence().filter(String::isNotBlank).toList()
         renderLogs()
         LogBuffer.listen(listener)
+    }
+
+    private fun combinedLogs(): List<String> {
+        val appLines = LogBuffer.all().lineSequence().filter(String::isNotBlank).toList()
+        val vpnLines = OpenVPNEngine.diagnostics().lineSequence().filter(String::isNotBlank).toList()
+        return (appLines + vpnLines).distinct().takeLast(500)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        currentLines = combinedLogs()
+        renderLogs()
     }
 
     private fun dp(value: Int): Int =
