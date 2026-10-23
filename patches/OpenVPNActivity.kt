@@ -321,11 +321,11 @@ class OpenVPNActivity : AppCompatActivity() {
     private fun askCredentials(name: String, config: String) {
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(22), dp(8), dp(22), 0) }
         val user = EditText(this).apply {
-            hint = getString(R.string.openvpn_username); singleLine = true
+            hint = getString(R.string.openvpn_username); setSingleLine(true)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PERSON_NAME
         }
         val pass = EditText(this).apply {
-            hint = getString(R.string.openvpn_password); singleLine = true
+            hint = getString(R.string.openvpn_password); setSingleLine(true)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         }
         box.addView(user, LinearLayout.LayoutParams(-1, dp(54)))
