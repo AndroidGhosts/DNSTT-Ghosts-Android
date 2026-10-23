@@ -443,94 +443,12 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          import re
           p = Path("app/build.gradle.kts")
           s = p.read_text(encoding="utf-8")
-          s, code_count = re.subn(r'(?m)^\s*versionCode\s*=\s*12\s*        shell: bash
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          set -euo pipefail
-          ./gradlew --no-daemon --stacktrace verifyGhostcoreArm64 assembleDebug
-          mkdir -p dist
-          test -s app/build/outputs/apk/debug/app-debug.apk
-          cp app/build/outputs/apk/debug/app-debug.apk dist/app-arm64-v8a-debug.apk
-          test -s dist/app-arm64-v8a-debug.apk
-          ls -lh dist/app-arm64-v8a-debug.apk
-
-      - name: Verify ARM64-only APK artifact
-        shell: bash
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          set -euo pipefail
-          APK="dist/app-arm64-v8a-debug.apk"
-          test -s "$APK"
-          python3 - "$APK" <<'PY'
-          import sys
-          import zipfile
-          apk = sys.argv[1]
-          with zipfile.ZipFile(apk) as z:
-              native = sorted(n for n in z.namelist() if n.startswith("lib/") and n.endswith(".so"))
-          abis = sorted({p.split("/")[1] for p in native if len(p.split("/")) >= 3})
-          if not native:
-              raise SystemExit("APK contains no native libraries; ARM64 engine may be missing.")
-          if abis != ["arm64-v8a"]:
-              raise SystemExit("Expected arm64-v8a native libraries only; found ABI(s): " + ", ".join(abis))
-          if "lib/arm64-v8a/libgojni.so" not in native:
-              raise SystemExit("APK is missing lib/arm64-v8a/libgojni.so.")
-          print("Verified APK native ABI: arm64-v8a only.")
-          print("Verified embedded engine: lib/arm64-v8a/libgojni.so.")
-          PY
-          if command -v aapt >/dev/null 2>&1; then
-            aapt dump badging "$APK" | grep -E '^(package:|native-code:|versionCode:|versionName:)'
-          fi
-          ls -lh "$APK"
-          test "$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 1
-
-      - name: Upload ARM64 APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: DNSTT-Ghosts-ARM64-APK-v1.4.9
-          path: ${{ env.PROJECT_DIR }}/dist/*.apk
-          if-no-files-found: error
-          retention-days: 14
-, '        versionCode = 13', s, count=1)
-          s, name_count = re.subn(r'(?m)^\s*versionName\s*=\s*"1\.4\.8-arm64"\s*        shell: bash
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          set -euo pipefail
-          ./gradlew --no-daemon --stacktrace verifyGhostcoreArm64 assembleDebug
-          mkdir -p dist
-          test -s app/build/outputs/apk/debug/app-debug.apk
-          cp app/build/outputs/apk/debug/app-debug.apk dist/app-arm64-v8a-debug.apk
-          test -s dist/app-arm64-v8a-debug.apk
-          ls -lh dist/app-arm64-v8a-debug.apk
-
-      - name: Verify ARM64 APK artifact
-        shell: bash
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          set -euo pipefail
-          for apk in dist/*.apk; do
-            test -s "$apk"
-            echo "APK ready: $apk"
-            ls -lh "$apk"
-            if command -v aapt >/dev/null 2>&1; then
-              aapt dump badging "$apk" | grep -E '^(package:|native-code:)' || true
-            fi
-          done
-          test -s dist/app-arm64-v8a-debug.apk
-          test "$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 1
-
-      - name: Upload ARM64 APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: DNSTT-Ghosts-ARM64-APK
-          path: ${{ env.PROJECT_DIR }}/dist/*.apk
-          if-no-files-found: error
-          retention-days: 14
-, '        versionName = "1.4.9-arm64"', s, count=1)
-          if code_count != 1 or name_count != 1:
-              raise SystemExit("Could not safely bump versionCode/versionName from 1.4.8-arm64.")
+          if "versionCode = 12" not in s or 'versionName = "1.4.8-arm64"' not in s:
+              raise SystemExit("Expected base version 1.4.8-arm64 (code 12) was not found.")
+          s = s.replace("versionCode = 12", "versionCode = 13", 1)
+          s = s.replace('versionName = "1.4.8-arm64"', 'versionName = "1.4.9-arm64"', 1)
           p.write_text(s, encoding="utf-8")
           print("Configured app version 1.4.9-arm64 (versionCode 13).")
           PY
