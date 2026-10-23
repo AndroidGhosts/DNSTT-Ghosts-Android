@@ -265,7 +265,7 @@ class OpenVPNActivity : AppCompatActivity() {
                     "auth-user-pass" -> {
                         val lines = content.lines()
                         if (lines.size < 2 || lines[0].isBlank()) { missing += referenced; match.value }
-                        else "<auth-user-pass>\n" + lines[0] + "\n" + lines[1] + "\n</auth-user-pass>"
+                        else "auth-user-pass " + writeAuthCredentials(lines[0], lines[1]).absolutePath
                     }
                     else -> {
                         if (content.isBlank()) { missing += referenced; match.value }
@@ -294,6 +294,17 @@ class OpenVPNActivity : AppCompatActivity() {
         require(!UNSUPPORTED_EXTERNAL_RE.containsMatchIn(config)) {
             getString(R.string.openvpn_sidecars_missing, UNSUPPORTED_EXTERNAL_RE.find(config)?.value ?: "")
         }
+    }
+
+    /** OpenVPN expects auth-user-pass to point to a credentials file; it does not accept an inline XML-like block. */
+    private fun writeAuthCredentials(username: String, password: String): File {
+        val file = File(folder(), "auth-" + UUID.randomUUID().toString() + ".txt")
+        file.writeText(username + "\n" + password + "\n", StandardCharsets.UTF_8)
+        file.setReadable(false, false)
+        file.setWritable(false, false)
+        file.setReadable(true, true)
+        file.setWritable(true, true)
+        return file
     }
 
     private fun saveProfile(originalName: String, config: String): Profile {
@@ -548,8 +559,9 @@ class OpenVPNActivity : AppCompatActivity() {
                 if (u.isBlank() || p.isBlank() || u.contains('\n') || u.contains('\r') || p.contains('\n') || p.contains('\r')) {
                     toast(getString(R.string.openvpn_credentials_invalid)); return@setOnClickListener
                 }
+                val credentialFile = writeAuthCredentials(u, p)
                 val inline = AUTH_USER_PASS_RE.replace(config) {
-                    "<auth-user-pass>\n" + u + "\n" + p + "\n</auth-user-pass>"
+                    "auth-user-pass " + credentialFile.absolutePath
                 }
                 dialog.dismiss()
                 requestVpnConsent(name, inline)
