@@ -142,8 +142,11 @@ def main_activity(path, menu_path):
         src=src.replace(marker,'''            R.id.m_openvpn_settings -> startActivity(Intent(this, OpenVPNActivity::class.java))
             R.id.m_add_profile -> showAddProfileChooser()''',1)
     if "private fun showAddProfileChooser()" not in src:
-        marker="    private fun showTunnelChooser() {"
-        if marker not in src: raise SystemExit("Tunnel chooser method not found")
+        # Insert relative to a stable Activity lifecycle method. The tunnel chooser
+        # may not exist in the upstream ZIP yet; it is added just below if needed.
+        marker = "    private fun showTunnelChooser() {" if "private fun showTunnelChooser()" in src else "    override fun onCreateOptionsMenu(menu: Menu): Boolean {"
+        if marker not in src:
+            raise SystemExit("Could not find a stable insertion point for add-profile chooser")
         method='''    private fun showAddProfileChooser() {
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.add_profile_protocol)
