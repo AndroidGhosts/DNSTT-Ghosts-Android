@@ -93,6 +93,14 @@ def strings(path, mapping):
 def main_layout(path):
     # OpenVPN is selected from the toolbar protocol menu, never as a home-screen button.
     src=path.read_text(encoding="utf-8")
+    # Protocol selection belongs only in the top toolbar menu, never on the home screen.
+    patterns = [
+        r'\s*<com\.google\.android\.material\.button\.MaterialButton\b(?=[^>]*android:id="@\+id/[^"]*(?:protocol|tunnel|switchVpn|switchProtocol)[^"]*")(?=[^>]*(?:select_tunnel|select_dnstt|select_openvpn|add_profile_protocol))[^>]*/>',
+        r'\s*<Button\b(?=[^>]*android:id="@\+id/[^"]*(?:protocol|tunnel|switchVpn|switchProtocol)[^"]*")(?=[^>]*(?:select_tunnel|select_dnstt|select_openvpn|add_profile_protocol))[^>]*/>',
+    ]
+    for pattern in patterns:
+        src = re.sub(pattern, "", src, flags=re.S | re.I)
+    # Remove the legacy standalone OpenVPN home button too.
     src=re.sub(r'\s*<com\.google\.android\.material\.button\.MaterialButton[^>]*android:id="@\+id/openVpnButton"[^>]*/>', "", src, flags=re.S)
     ET.parse(path)
     path.write_text(src,encoding="utf-8")
@@ -183,7 +191,7 @@ def main_activity(path, menu_path):
     menu=menu_path.read_text(encoding="utf-8")
     items=[]
     if '@+id/m_tunnel' not in menu:
-        items.append('    <item android:id="@+id/m_tunnel" android:title="@string/select_tunnel" android:icon="@drawable/ic_more" app:showAsAction="always" />')
+        items.append('    <item android:id="@+id/m_tunnel" android:title="@string/select_tunnel" android:icon="@drawable/ic_more" app:showAsAction="never" />')
     if '@+id/m_add_profile' not in menu:
         items.append('    <item android:id="@+id/m_add_profile" android:title="@string/add_profile_protocol" android:icon="@android:drawable/ic_input_add" app:showAsAction="never" />')
     if '@+id/m_openvpn_settings' not in menu:
@@ -210,7 +218,10 @@ def run():
     strings(project/"app/src/main/res/values-ar/strings.xml",AR)
     ET.parse(layout/"activity_openvpn.xml")
     if not (project/"app/libs/ghostcore.aar").is_file(): raise SystemExit("Existing DNSTT AAR missing; aborting")
-    if "@+id/openVpnButton" in (layout/"activity_main.xml").read_text(encoding="utf-8"): raise SystemExit("OpenVPN must be selected from the toolbar menu, not the home screen")
+    main_xml=(layout/"activity_main.xml").read_text(encoding="utf-8")
+    if "@+id/openVpnButton" in main_xml: raise SystemExit("OpenVPN must be selected from the toolbar menu, not the home screen")
+    if re.search(r'android:id="@\+id/[^"]*(?:protocol|tunnel|switchVpn|switchProtocol)[^"]*"', main_xml, re.I):
+        raise SystemExit("Protocol/tunnel selector must not appear as a home-screen control")
     print("OpenVPN integration applied; DNSTT ghostcore AAR retained.")
 
 if __name__=="__main__": run()
