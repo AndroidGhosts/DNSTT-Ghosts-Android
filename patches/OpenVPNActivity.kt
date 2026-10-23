@@ -78,13 +78,6 @@ class OpenVPNActivity : AppCompatActivity() {
         disconnectButton = findViewById(R.id.openVpnDisconnectButton)
         val toolbar = findViewById<MaterialToolbar>(R.id.openVpnToolbar)
         toolbar.setNavigationOnClickListener { finish() }
-        toolbar.menu.add(0, MENU_SWITCH_TUNNEL, 0, getString(R.string.select_tunnel)).apply {
-            setIcon(android.R.drawable.ic_menu_manage)
-            setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
-        }
-        toolbar.setOnMenuItemClickListener { item ->
-            if (item.itemId == MENU_SWITCH_TUNNEL) { showTunnelChooser(); true } else false
-        }
         importButton.setOnClickListener { importLauncher.launch(arrayOf("*/*")) }
         advancedButton.setOnClickListener { showAdvancedOptions() }
         connectButton.setOnClickListener { connectSelected() }
@@ -650,7 +643,6 @@ class OpenVPNActivity : AppCompatActivity() {
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
 
     companion object {
-        private const val MENU_SWITCH_TUNNEL = 7101
         private const val PREFS = "openvpn_profiles"
         private const val KEY_SELECTED = "selected_id"
         private const val MAX_FILE_BYTES = 5 * 1024 * 1024
