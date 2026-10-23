@@ -18,7 +18,13 @@ EN = {
 "openvpn_vpn_conflict_title":"Another VPN is active","openvpn_stop_dnstt_first":"Disconnect DNSTT from the main screen, then start OpenVPN. Only one VPN tunnel can run at a time.",
 "openvpn_close_other_vpn":"Disconnect the other VPN app first, then retry.","openvpn_permission_denied":"Android VPN permission was not granted.","openvpn_connect_failed":"OpenVPN could not start",
 "openvpn_auth_title":"OpenVPN login","openvpn_username":"Username","openvpn_password":"Password","openvpn_continue":"Continue","openvpn_credentials_invalid":"Enter a username and password without line breaks.",
-"openvpn_license_notice":"Engine: ics-openvpn / OpenVPN 3. Upstream license and source notices are in OPENVPN-NOTICES.md."
+"openvpn_license_notice":"Engine: ics-openvpn / OpenVPN 3. Upstream license and source notices are in OPENVPN-NOTICES.md.",
+"select_tunnel":"Select tunnel / البروتوكول","select_dnstt":"DNSTT tunnel","select_openvpn":"OpenVPN tunnel",
+"openvpn_switch_disconnect_first":"OpenVPN is active. Disconnect it before switching to DNSTT.",
+"openvpn_switch_disconnect_timeout":"OpenVPN is still disconnecting. Wait a moment and switch again.",
+"openvpn_advanced_title":"Advanced OpenVPN settings","openvpn_advanced_help":"Edit the complete .ovpn configuration. All supported OpenVPN directives are preserved. Incorrect settings can prevent connection.",
+"openvpn_save_advanced":"Save settings","openvpn_advanced_saved":"Advanced profile settings saved.",
+"openvpn_advanced_disconnect_first":"Disconnect OpenVPN before editing advanced settings."
 }
 AR = {
 "openvpn_title":"نفق OpenVPN","openvpn_open":"OpenVPN • استيراد .ovpn",
@@ -34,7 +40,13 @@ AR = {
 "openvpn_vpn_conflict_title":"يوجد VPN آخر قيد التشغيل","openvpn_stop_dnstt_first":"افصل نفق DNSTT من الشاشة الرئيسية، ثم شغّل OpenVPN. لا يمكن تشغيل نفقين في الوقت نفسه.",
 "openvpn_close_other_vpn":"افصل تطبيق VPN الآخر أولًا ثم أعد المحاولة.","openvpn_permission_denied":"لم تتم الموافقة على إذن VPN من Android.","openvpn_connect_failed":"تعذر بدء OpenVPN",
 "openvpn_auth_title":"تسجيل دخول OpenVPN","openvpn_username":"اسم المستخدم","openvpn_password":"كلمة المرور","openvpn_continue":"متابعة","openvpn_credentials_invalid":"أدخل اسم المستخدم وكلمة المرور دون أسطر جديدة.",
-"openvpn_license_notice":"المحرك: ics-openvpn / OpenVPN 3. تفاصيل الترخيص والسورس في OPENVPN-NOTICES.md."
+"openvpn_license_notice":"المحرك: ics-openvpn / OpenVPN 3. تفاصيل الترخيص والسورس في OPENVPN-NOTICES.md.",
+"select_tunnel":"اختيار النفق / البروتوكول","select_dnstt":"نفق DNSTT","select_openvpn":"نفق OpenVPN",
+"openvpn_switch_disconnect_first":"نفق OpenVPN متصل. افصله قبل التبديل إلى DNSTT.",
+"openvpn_switch_disconnect_timeout":"ما زال OpenVPN يفصل الاتصال. انتظر قليلًا ثم حاول التبديل.",
+"openvpn_advanced_title":"إعدادات OpenVPN المتقدمة","openvpn_advanced_help":"يمكنك تعديل ملف .ovpn كاملًا مع الحفاظ على توجيهات OpenVPN المدعومة. الإعدادات غير الصحيحة قد تمنع الاتصال.",
+"openvpn_save_advanced":"حفظ الإعدادات","openvpn_advanced_saved":"تم حفظ إعدادات الملف المتقدمة.",
+"openvpn_advanced_disconnect_first":"افصل OpenVPN قبل تعديل الإعدادات المتقدمة."
 }
 ANDROID="http://schemas.android.com/apk/res/android"
 TOOLS="http://schemas.android.com/tools"
@@ -51,27 +63,11 @@ def strings(path, mapping):
     ET.parse(path)
 
 def main_layout(path):
+    # OpenVPN is selected from the toolbar protocol menu, never as a home-screen button.
     src=path.read_text(encoding="utf-8")
-    if "@+id/openVpnButton" not in src:
-        pos=src.find('android:id="@+id/telegramLink"')
-        if pos<0: raise SystemExit("telegramLink not found in home layout")
-        end=src.find("</LinearLayout>",pos)
-        if end<0: raise SystemExit("Home profile card closing tag not found")
-        button='''
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/openVpnButton"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="6dp"
-                            android:minHeight="48dp"
-                            android:text="@string/openvpn_open"
-                            android:textColor="#39FF14"
-                            app:strokeColor="#5539FF14" />
-'''
-        src=src[:end]+button+src[end:]
-        path.write_text(src,encoding="utf-8")
+    src=re.sub(r'\s*<com\\.google\\.android\\.material\\.button\\.MaterialButton[^>]*android:id="@\\+id/openVpnButton"[^>]*/>', "", src, flags=re.S)
     ET.parse(path)
+    path.write_text(src,encoding="utf-8")
 
 def manifest(path):
     ET.register_namespace("android",ANDROID); ET.register_namespace("tools",TOOLS)
@@ -100,14 +96,35 @@ def gradle(app_path,settings_path):
         settings=settings[:end]+'        maven { url = uri(System.getenv("GITHUB_WORKSPACE") + "/openvpn_dart/android/localmaven") }\n'+settings[end:]
         settings_path.write_text(settings,encoding="utf-8")
 
-def main_activity(path):
+def main_activity(path, menu_path):
     src=path.read_text(encoding="utf-8")
-    marker='findViewById<View>(R.id.testButton).setOnClickListener { testLatency() }'
-    if "OpenVPNActivity::class.java" not in src:
-        if marker not in src: raise SystemExit("MainActivity test-button location not found")
-        src=src.replace(marker,marker+'\n        findViewById<View>(R.id.openVpnButton).setOnClickListener {\n            startActivity(Intent(this, OpenVPNActivity::class.java))\n        }',1)
-        path.write_text(src,encoding="utf-8")
-    elif "R.id.openVpnButton" not in src: raise SystemExit("Inconsistent OpenVPN home-button wiring")
+    if "R.id.m_tunnel" not in src:
+        marker='''            R.id.m_about -> MaterialAlertDialogBuilder(this)'''
+        if marker not in src: raise SystemExit("MainActivity options menu dispatch point not found")
+        src=src.replace(marker,'''            R.id.m_tunnel -> showTunnelChooser()
+            R.id.m_about -> MaterialAlertDialogBuilder(this)''',1)
+    if "private fun showTunnelChooser()" not in src:
+        marker="    override fun onCreateOptionsMenu(menu: Menu): Boolean {"
+        if marker not in src: raise SystemExit("MainActivity options menu method not found")
+        method='''    private fun showTunnelChooser() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.select_tunnel)
+            .setItems(arrayOf(getString(R.string.select_dnstt), getString(R.string.select_openvpn))) { _, which ->
+                if (which == 1) startActivity(Intent(this, OpenVPNActivity::class.java))
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+'''
+        src=src.replace(marker,method+marker,1)
+    path.write_text(src,encoding="utf-8")
+    menu=menu_path.read_text(encoding="utf-8")
+    if '@+id/m_tunnel' not in menu:
+        item='    <item android:id="@+id/m_tunnel" android:title="@string/select_tunnel" android:icon="@drawable/ic_more" app:showAsAction="always" />\n'
+        menu=menu.replace("</menu>",item+"</menu>")
+        menu_path.write_text(menu,encoding="utf-8")
+    ET.parse(menu_path)
 
 def run():
     if len(sys.argv)!=3: raise SystemExit("Usage: apply_openvpn.py PROJECT_DIR PATCH_DIR")
@@ -119,14 +136,14 @@ def run():
         if not source.is_file(): raise SystemExit("Missing patch source: "+str(source))
         shutil.copyfile(source,target)
     main_layout(layout/"activity_main.xml")
-    main_activity(java/"MainActivity.kt")
+    main_activity(java/"MainActivity.kt",project/"app/src/main/res/menu/main.xml")
     manifest(project/"app/src/main/AndroidManifest.xml")
     gradle(project/"app/build.gradle.kts",project/"settings.gradle.kts")
     strings(project/"app/src/main/res/values/strings.xml",EN)
     strings(project/"app/src/main/res/values-ar/strings.xml",AR)
     ET.parse(layout/"activity_openvpn.xml")
     if not (project/"app/libs/ghostcore.aar").is_file(): raise SystemExit("Existing DNSTT AAR missing; aborting")
-    if "@+id/openVpnButton" not in (layout/"activity_main.xml").read_text(encoding="utf-8"): raise SystemExit("OpenVPN home button missing")
+    if "@+id/openVpnButton" in (layout/"activity_main.xml").read_text(encoding="utf-8"): raise SystemExit("OpenVPN must be selected from the toolbar menu, not the home screen")
     print("OpenVPN integration applied; DNSTT ghostcore AAR retained.")
 
 if __name__=="__main__": run()
