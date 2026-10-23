@@ -326,36 +326,6 @@ class OpenVPNActivity : AppCompatActivity() {
         return Profile(id, name, remote, proto, file)
     }
 
-    private fun showTunnelChooser() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.select_tunnel)
-            .setItems(arrayOf(getString(R.string.select_dnstt), getString(R.string.select_openvpn))) { _, which ->
-                if (which == 0) {
-                    if (OpenVPNEngine.state != "DISCONNECTED") {
-                        MaterialAlertDialogBuilder(this)
-                            .setTitle(R.string.openvpn_disconnect)
-                            .setMessage(R.string.openvpn_switch_disconnect_first)
-                            .setNegativeButton(R.string.cancel, null)
-                            .setPositiveButton(R.string.openvpn_disconnect) { _, _ ->
-                                OpenVPNEngine.disconnect(applicationContext)
-                                waitForDisconnectAndFinish(0)
-                            }.show()
-                    } else finish()
-                }
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
-    private fun waitForDisconnectAndFinish(attempt: Int) {
-        if (OpenVPNEngine.state == "DISCONNECTED") { finish(); return }
-        if (attempt >= 20) {
-            toast(getString(R.string.openvpn_switch_disconnect_timeout))
-            return
-        }
-        handler.postDelayed({ waitForDisconnectAndFinish(attempt + 1) }, 250)
-    }
-
     private fun showAdvancedOptions() {
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.openvpn_advanced_title)
