@@ -65,7 +65,7 @@ def strings(path, mapping):
 def main_layout(path):
     # OpenVPN is selected from the toolbar protocol menu, never as a home-screen button.
     src=path.read_text(encoding="utf-8")
-    src=re.sub(r'\s*<com\\.google\\.android\\.material\\.button\\.MaterialButton[^>]*android:id="@\\+id/openVpnButton"[^>]*/>', "", src, flags=re.S)
+    src=re.sub(r'\s*<com\.google\.android\.material\.button\.MaterialButton[^>]*android:id="@\+id/openVpnButton"[^>]*/>', "", src, flags=re.S)
     ET.parse(path)
     path.write_text(src,encoding="utf-8")
 
