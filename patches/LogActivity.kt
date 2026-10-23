@@ -17,15 +17,15 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
 import java.util.Locale
 
-/** Simple log screen: original-style layout, colored events, Copy and Clear only. */
+/** Android_Ghosts diagnostics screen with readable event colors and quick actions. */
 class LogActivity : AppCompatActivity() {
     private lateinit var logText: TextView
     private lateinit var scroll: ScrollView
     private var currentLines: List<String> = emptyList()
-    private val accent = Color.rgb(0, 238, 190)
-    private val bg = Color.rgb(5, 12, 19)
-    private val panel = Color.rgb(10, 23, 32)
-    private val muted = Color.rgb(119, 150, 166)
+    private val accent = Color.rgb(57, 255, 20)
+    private val bg = Color.rgb(7, 13, 10)
+    private val panel = Color.rgb(13, 23, 17)
+    private val muted = Color.rgb(154, 177, 160)
 
     private val listener: (String) -> Unit = {
         runOnUiThread {
@@ -55,13 +55,13 @@ class LogActivity : AppCompatActivity() {
         }
 
         val toolbar = MaterialToolbar(this).apply {
-            title = "LOGS"
+            title = "سجل التشغيل"
             setTitleTextColor(accent)
             setBackgroundColor(panel)
             setNavigationIcon(androidx.appcompat.R.drawable.abc_ic_ab_back_material)
             setNavigationOnClickListener { finish() }
         }
-        root.addView(toolbar, LinearLayout.LayoutParams(-1, dp(56)))
+        root.addView(toolbar, LinearLayout.LayoutParams(-1, dp(64)))
         setSupportActionBar(toolbar)
 
         scroll = ScrollView(this).apply {
@@ -72,7 +72,7 @@ class LogActivity : AppCompatActivity() {
             typeface = Typeface.MONOSPACE
             textSize = 12f
             setTextColor(Color.rgb(206, 224, 232))
-            setPadding(dp(12), dp(12), dp(12), dp(18))
+            setPadding(dp(16), dp(18), dp(16), dp(24))
             setTextIsSelectable(true)
             setLineSpacing(dp(2).toFloat(), 1.0f)
         }
@@ -82,21 +82,22 @@ class LogActivity : AppCompatActivity() {
         val footer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(8), dp(6), dp(8), dp(6))
+            setPadding(dp(12), dp(10), dp(12), dp(10))
             setBackgroundColor(panel)
+            elevation = dp(8).toFloat()
         }
 
         val copyButton = TextView(this).apply {
-            text = "COPY"
+            text = "نسخ السجل"
             gravity = Gravity.CENTER
-            textSize = 12f
-            typeface = Typeface.MONOSPACE
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
             setTextColor(accent)
             setPadding(dp(18), dp(10), dp(18), dp(10))
             setOnClickListener { copyLogs() }
         }
         val clearButton = TextView(this).apply {
-            text = "CLEAR"
+            text = "مسح السجل"
             gravity = Gravity.CENTER
             textSize = 12f
             typeface = Typeface.MONOSPACE
@@ -129,7 +130,7 @@ class LogActivity : AppCompatActivity() {
         if (!::logText.isInitialized) return
         val lines = currentLines
         if (lines.isEmpty()) {
-            logText.text = "No logs yet."
+            logText.text = "لا توجد سجلات حتى الآن.\n\nستظهر هنا أحداث الاتصال والنفق وأخطاء الشبكة."
             return
         }
 
