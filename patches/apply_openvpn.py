@@ -109,8 +109,16 @@ def manifest(path):
     ET.register_namespace("android",ANDROID); ET.register_namespace("tools",TOOLS)
     tree=ET.parse(path); root=tree.getroot(); app=root.find("application")
     if app is None: raise SystemExit("Manifest application node missing")
+    changed = False
     if not any(n.tag=="activity" and n.get("{"+ANDROID+"}name")==".OpenVPNActivity" for n in app):
         ET.SubElement(app,"activity",{"{"+ANDROID+"}name":".OpenVPNActivity","{"+ANDROID+"}exported":"false","{"+ANDROID+"}windowSoftInputMode":"adjustResize"})
+        changed = True
+    # LogActivity is launched from the diagnostics/logs control and must be registered;
+    # otherwise Android throws ActivityNotFoundException before the screen can open.
+    if not any(n.tag=="activity" and n.get("{"+ANDROID+"}name")==".LogActivity" for n in app):
+        ET.SubElement(app,"activity",{"{"+ANDROID+"}name":".LogActivity","{"+ANDROID+"}exported":"false","{"+ANDROID+"}windowSoftInputMode":"adjustResize"})
+        changed = True
+    if changed:
         tree.write(path,encoding="utf-8",xml_declaration=True)
     ET.parse(path)
 
