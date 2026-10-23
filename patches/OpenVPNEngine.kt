@@ -77,7 +77,7 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
             Log.i(TAG, "OpenVPN start requested; profile contents are not logged")
         } catch (error: Exception) {
             timeoutHandler.removeCallbacks(connectionTimeout)
-            state = "DISCONNECTED"; failed = true; lastError = "start_failed"
+            state = "DISCONNECTED"; failed = true; lastError = error.message?.take(220) ?: "start_failed"
             Log.e(TAG, "OpenVPN connect failed", error)
             throw error
         }
@@ -126,10 +126,18 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
         state: String?, logmessage: String?, localizedResId: Int,
         level: IcsStatus?, intent: Intent?,
     ) {
+        // Preserve only short, useful diagnostic messages; never log the profile or credentials.
+        if (!logmessage.isNullOrBlank() && Regex(
+                "(?i)(auth_failed|tls error|resolve|connection refused|network is unreachable|certificate verify failed|unsupported option|cannot load|failed)"
+            ).containsMatchIn(logmessage)
+        ) {
+            lastError = logmessage.trim().take(220)
+            Log.w(TAG, "OpenVPN diagnostic: $lastError")
+        }
         when (level) {
             IcsStatus.LEVEL_CONNECTED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "CONNECTED"; failed = false; lastError = "" }
             IcsStatus.LEVEL_NOTCONNECTED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "DISCONNECTED" }
-            IcsStatus.LEVEL_AUTH_FAILED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "DISCONNECTED"; failed = true; lastError = "auth" }
+            IcsStatus.LEVEL_AUTH_FAILED -> { timeoutHandler.removeCallbacks(connectionTimeout); this.state = "DISCONNECTED"; failed = true; if (lastError.isBlank()) lastError = "Authentication failed" }
             IcsStatus.LEVEL_START,
             IcsStatus.LEVEL_CONNECTING_SERVER_REPLIED,
             IcsStatus.LEVEL_CONNECTING_NO_SERVER_REPLY_YET,
@@ -139,7 +147,7 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
         }
     }
     override fun setConnectedVPN(uuid: String?) = Unit
-    private const val CONNECTION_DEADLINE_MS = 45_000L
+    private const val CONNECTION_DEADLINE_MS = 120_000L
 
     override fun updateByteCount(inBytes: Long, outBytes: Long, diffIn: Long, diffOut: Long) {
         downloadBytes = inBytes.coerceAtLeast(0L)
