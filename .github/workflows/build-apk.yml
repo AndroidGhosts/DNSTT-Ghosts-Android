@@ -266,6 +266,18 @@ jobs:
           print(f"Professional native layout XML validated; {len(required)} required view IDs preserved.")
           PY
 
+      - name: Install animated Matrix rain background
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set -euo pipefail
+          DEST="app/src/main/java/com/androidghosts/dnsttghosts"
+          mkdir -p "$DEST"
+          cp "${GITHUB_WORKSPACE}/patches/MatrixRainView.kt" "$DEST/MatrixRainView.kt"
+          grep -q 'class MatrixRainView' "$DEST/MatrixRainView.kt"
+          grep -q 'matrixRainBackground' app/src/main/res/layout/activity_main.xml
+          echo "Animated Matrix rain background installed."
+
       - name: Apply cyber terminal diagnostics screen and redact credentials
         shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
