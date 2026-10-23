@@ -43,6 +43,7 @@ class OpenVPNActivity : AppCompatActivity() {
     private lateinit var empty: TextView
     private lateinit var list: LinearLayout
     private lateinit var importButton: MaterialButton
+    private lateinit var advancedButton: MaterialButton
     private lateinit var connectButton: MaterialButton
     private lateinit var disconnectButton: MaterialButton
     private val handler = Handler(Looper.getMainLooper())
@@ -72,10 +73,20 @@ class OpenVPNActivity : AppCompatActivity() {
         empty = findViewById(R.id.openVpnEmptyView)
         list = findViewById(R.id.openVpnProfileList)
         importButton = findViewById(R.id.openVpnImportButton)
+        advancedButton = findViewById(R.id.openVpnAdvancedButton)
         connectButton = findViewById(R.id.openVpnConnectButton)
         disconnectButton = findViewById(R.id.openVpnDisconnectButton)
-        findViewById<MaterialToolbar>(R.id.openVpnToolbar).setNavigationOnClickListener { finish() }
+        val toolbar = findViewById<MaterialToolbar>(R.id.openVpnToolbar)
+        toolbar.setNavigationOnClickListener { finish() }
+        toolbar.menu.add(0, MENU_SWITCH_TUNNEL, 0, getString(R.string.select_tunnel)).apply {
+            setIcon(android.R.drawable.ic_menu_manage)
+            setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
+        }
+        toolbar.setOnMenuItemClickListener { item ->
+            if (item.itemId == MENU_SWITCH_TUNNEL) { showTunnelChooser(); true } else false
+        }
         importButton.setOnClickListener { importLauncher.launch(arrayOf("*/*")) }
+        advancedButton.setOnClickListener { showAdvancedEditor() }
         connectButton.setOnClickListener { connectSelected() }
         disconnectButton.setOnClickListener { OpenVPNEngine.disconnect(applicationContext); refreshState() }
         OpenVPNEngine.initialize(applicationContext)
@@ -231,7 +242,7 @@ class OpenVPNActivity : AppCompatActivity() {
             out.toByteArray()
         } ?: throw IllegalArgumentException(getString(R.string.openvpn_read_failed, displayName))
         val isBinary = displayName.endsWith(".p12", true) || displayName.endsWith(".pfx", true) || bytes.take(2048).any { it == 0.toByte() }
-        return Document(displayName, if (isBinary) null else String(bytes, StandardCharsets.UTF_8))
+        return Document(displayName, if (isBinary) null else String(bytes, StandardCharsets.UTF_8).removePrefix("\uFEFF"))
     }
 
     private fun inlineSidecars(config: String, docs: List<Document>): String {
@@ -294,6 +305,94 @@ class OpenVPNActivity : AppCompatActivity() {
         file.writeText(config, StandardCharsets.UTF_8)
         File(folder(), id + ".meta").writeText(JSONObject().put("name", name).put("remote", remote).put("proto", proto).toString())
         return Profile(id, name, remote, proto, file)
+    }
+
+    private fun showTunnelChooser() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.select_tunnel)
+            .setItems(arrayOf(getString(R.string.select_dnstt), getString(R.string.select_openvpn))) { _, which ->
+                if (which == 0) {
+                    if (OpenVPNEngine.state != "DISCONNECTED") {
+                        MaterialAlertDialogBuilder(this)
+                            .setTitle(R.string.openvpn_disconnect)
+                            .setMessage(R.string.openvpn_switch_disconnect_first)
+                            .setNegativeButton(R.string.cancel, null)
+                            .setPositiveButton(R.string.openvpn_disconnect) { _, _ ->
+                                OpenVPNEngine.disconnect(applicationContext)
+                                waitForDisconnectAndFinish(0)
+                            }.show()
+                    } else finish()
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun waitForDisconnectAndFinish(attempt: Int) {
+        if (OpenVPNEngine.state == "DISCONNECTED") { finish(); return }
+        if (attempt >= 20) {
+            toast(getString(R.string.openvpn_switch_disconnect_timeout))
+            return
+        }
+        handler.postDelayed({ waitForDisconnectAndFinish(attempt + 1) }, 250)
+    }
+
+    private fun showAdvancedEditor() {
+        val profile = profiles.firstOrNull { it.id == selectedId }
+        if (profile == null) { toast(getString(R.string.openvpn_choose_profile)); return }
+        if (OpenVPNEngine.state != "DISCONNECTED") {
+            toast(getString(R.string.openvpn_advanced_disconnect_first)); return
+        }
+        val editor = EditText(this).apply {
+            setText(profile.file.readText(StandardCharsets.UTF_8))
+            setSelection(0)
+            minLines = 14
+            maxLines = 24
+            gravity = Gravity.TOP or Gravity.START
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            setHorizontallyScrolling(false)
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+        }
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(8), dp(4), dp(8), 0)
+            addView(editor, LinearLayout.LayoutParams(-1, dp(380)))
+        }
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.openvpn_advanced_title)
+            .setMessage(R.string.openvpn_advanced_help)
+            .setView(container)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.openvpn_save_advanced, null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val config = editor.text.toString()
+                try {
+                    require(config.isNotBlank() && REMOTE_RE.containsMatchIn(config)) {
+                        getString(R.string.openvpn_no_remote)
+                    }
+                    require(!Regex("(?im)^[ \\t]*(?:server|tls-server)[ \\t]*$").containsMatchIn(config)) {
+                        getString(R.string.openvpn_server_config)
+                    }
+                    profile.file.writeText(config, StandardCharsets.UTF_8)
+                    File(folder(), profile.id + ".meta").writeText(
+                        JSONObject().put("name", profile.name)
+                            .put("remote", firstMatch(REMOTE_RE, config) ?: profile.remote)
+                            .put("proto", firstMatch(PROTO_RE, config) ?: profile.proto).toString()
+                    )
+                    dialog.dismiss()
+                    reloadProfiles()
+                    toast(getString(R.string.openvpn_advanced_saved))
+                } catch (error: Exception) {
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle(R.string.openvpn_import_failed)
+                        .setMessage(error.message ?: getString(R.string.openvpn_invalid_profile))
+                        .setPositiveButton(R.string.ok, null).show()
+                }
+            }
+        }
+        dialog.show()
     }
 
     private fun connectSelected() {
@@ -407,13 +506,14 @@ class OpenVPNActivity : AppCompatActivity() {
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
 
     companion object {
+        private const val MENU_SWITCH_TUNNEL = 7101
         private const val PREFS = "openvpn_profiles"
         private const val KEY_SELECTED = "selected_id"
         private const val MAX_FILE_BYTES = 5 * 1024 * 1024
-        private val REMOTE_RE = Regex("(?im)^\\s*remote\\s+([^\\s#]+)")
-        private val PROTO_RE = Regex("(?im)^\\s*proto\\s+([^\\s#]+)")
-        private val SIDECAR_RE = Regex("(?im)^\\s*(ca|cert|key|tls-auth|tls-crypt|secret|auth-user-pass)\\s+(?:\"([^\"]+)\"|([^\\s#]+))(?:\\s+([^\\s#]+))?[^\\n]*")
-        private val UNSUPPORTED_EXTERNAL_RE = Regex("(?im)^\\s*(pkcs12|crl-verify|extra-certs|dh)\\s+(?:\"([^\"]+)\"|([^\\s#]+))[^\\n]*")
+        private val REMOTE_RE = Regex("(?im)^[ \\t]*remote[ \\t]+([^ \\t\\r\\n#]+)")
+        private val PROTO_RE = Regex("(?im)^[ \\t]*proto[ \\t]+([^ \\t\\r\\n#]+)")
+        private val SIDECAR_RE = Regex("(?im)^[ \\t]*(ca|cert|key|tls-auth|tls-crypt|secret|auth-user-pass)[ \\t]+(?:\\\"([^\\\"]+)\\\"|([^ \\t\\r\\n#]+))(?:[ \\t]+([^ \\t\\r\\n#]+))?[^\\r\\n]*")
+        private val UNSUPPORTED_EXTERNAL_RE = Regex("(?im)^[ \\t]*(pkcs12|crl-verify|extra-certs|dh)[ \\t]+(?:\\\"([^\\\"]+)\\\"|([^ \\t\\r\\n#]+))[^\\r\\n]*")
         private val AUTH_USER_PASS_RE = Regex("(?im)^\\s*auth-user-pass\\s*(?:#.*)?")
         private val INLINE_AUTH_RE = Regex("(?is)<auth-user-pass>.*?</auth-user-pass>")
     }
