@@ -412,8 +412,8 @@ class OpenVPNActivity : AppCompatActivity() {
         private const val MAX_FILE_BYTES = 5 * 1024 * 1024
         private val REMOTE_RE = Regex("(?im)^\\s*remote\\s+([^\\s#]+)")
         private val PROTO_RE = Regex("(?im)^\\s*proto\\s+([^\\s#]+)")
-        private val SIDECAR_RE = Regex("(?im)^\\s*(ca|cert|key|tls-auth|tls-crypt|secret|auth-user-pass)\\s+(?:\"([^\"]+)""|([^\\s#]+))(?:\\s+([^\\s#]+))?[^\\n]*")
-        private val UNSUPPORTED_EXTERNAL_RE = Regex("(?im)^\\s*(pkcs12|crl-verify|extra-certs|dh)\\s+(?:\"([^\"]+)""|([^\\s#]+))[^\\n]*")
+        private val SIDECAR_RE = Regex("(?im)^\\s*(ca|cert|key|tls-auth|tls-crypt|secret|auth-user-pass)\\s+(?:\"([^\"]+)\"|([^\\s#]+))(?:\\s+([^\\s#]+))?[^\\n]*")
+        private val UNSUPPORTED_EXTERNAL_RE = Regex("(?im)^\\s*(pkcs12|crl-verify|extra-certs|dh)\\s+(?:\"([^\"]+)\"|([^\\s#]+))[^\\n]*")
         private val AUTH_USER_PASS_RE = Regex("(?im)^\\s*auth-user-pass\\s*(?:#.*)?")
         private val INLINE_AUTH_RE = Regex("(?is)<auth-user-pass>.*?</auth-user-pass>")
     }
