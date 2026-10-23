@@ -259,7 +259,7 @@ class OpenVPNActivity : AppCompatActivity() {
                     else -> {
                         if (content.isBlank()) { missing += referenced; match.value }
                         else {
-                            val block = "<" + directive + ">\\n" + content + "\\n</" + directive + ">"
+                            val block = "<" + directive + ">\n" + content + "\n</" + directive + ">"
                             if (directive == "tls-auth" && option.isNotBlank()) block + "\nkey-direction " + option else block
                         }
                     }
