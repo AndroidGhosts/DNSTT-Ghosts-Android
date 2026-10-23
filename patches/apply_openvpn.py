@@ -139,16 +139,10 @@ def main_activity(path, menu_path):
         if marker not in src: raise SystemExit("MainActivity options menu dispatch point not found")
         src=src.replace(marker,'''            R.id.m_tunnel -> showTunnelChooser()
             R.id.m_about -> MaterialAlertDialogBuilder(this)''',1)
-    if "R.id.m_add_profile" not in src:
-        marker='''            R.id.m_tunnel -> showTunnelChooser()'''
-        if marker not in src: raise SystemExit("Tunnel menu dispatch point not found")
-        src=src.replace(marker,'''            R.id.m_add_profile -> showAddProfileChooser()
-            R.id.m_tunnel -> showTunnelChooser()''',1)
-    if "R.id.m_openvpn_settings" not in src:
-        marker='''            R.id.m_add_profile -> showAddProfileChooser()'''
-        if marker not in src: raise SystemExit("Add profile menu dispatch point not found")
-        src=src.replace(marker,'''            R.id.m_openvpn_settings -> startActivity(Intent(this, OpenVPNActivity::class.java))
-            R.id.m_add_profile -> showAddProfileChooser()''',1)
+    # Protocol choice is the only tunnel-related top-menu item. Profile import
+    # remains inside the relevant protocol screen; do not duplicate actions here.
+    src = re.sub(r'^\s*R\.id\.m_add_profile\s*->.*\n', '', src, flags=re.M)
+    src = re.sub(r'^\s*R\.id\.m_openvpn_settings\s*->.*\n', '', src, flags=re.M)
     if "private fun showAddProfileChooser()" not in src:
         # Insert relative to a stable Activity lifecycle method. The tunnel chooser
         # may not exist in the upstream ZIP yet; it is added just below if needed.
@@ -192,13 +186,11 @@ def main_activity(path, menu_path):
     items=[]
     if '@+id/m_tunnel' not in menu:
         items.append('    <item android:id="@+id/m_tunnel" android:title="@string/select_tunnel" android:icon="@drawable/ic_more" app:showAsAction="never" />')
-    if '@+id/m_add_profile' not in menu:
-        items.append('    <item android:id="@+id/m_add_profile" android:title="@string/add_profile_protocol" android:icon="@android:drawable/ic_input_add" app:showAsAction="never" />')
-    if '@+id/m_openvpn_settings' not in menu:
-        items.append('    <item android:id="@+id/m_openvpn_settings" android:title="@string/openvpn_settings_menu" app:showAsAction="never" />')
+    # Clean up duplicate protocol/profile entries from older generated menus.
+    menu = re.sub(r'\s*<item\b(?=[^>]*android:id="@\+id/(?:m_add_profile|m_openvpn_settings)")(?=[^>]*>)[^>]*/>', '', menu)
     if items:
         menu=menu.replace("</menu>","\n"+"\n".join(items)+"\n</menu>")
-        menu_path.write_text(menu,encoding="utf-8")
+    menu_path.write_text(menu,encoding="utf-8")
     ET.parse(menu_path)
 
 def run():
