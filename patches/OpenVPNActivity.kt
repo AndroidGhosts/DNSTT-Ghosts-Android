@@ -412,7 +412,11 @@ class OpenVPNActivity : AppCompatActivity() {
                 val proto = if (tcp) "tcp-client" else "udp"
                 updated = if (PROTO_RE.containsMatchIn(updated)) PROTO_RE.replaceFirst(updated, "proto $proto")
                     else "proto $proto\\n" + updated
-                updated = if (REMOTE_PORT_RE.containsMatchIn(updated)) REMOTE_PORT_RE.replaceFirst(updated) { match -> match.value.replace(match.groupValues[2], p.toString()) }
+                updated = if (REMOTE_PORT_RE.containsMatchIn(updated)) REMOTE_PORT_RE.replaceFirst(updated) { match ->
+                        Regex("([ \\t]+)[0-9]{1,5}([ \\t]*(?:#.*)?)$").replaceFirst(match.value) { tail ->
+                            tail.groupValues[1] + p.toString() + tail.groupValues[2]
+                        }
+                    }
                     else REMOTE_RE.replaceFirst(updated) { it.value + " $p" }
                 updated = setDirective(updated, TUN_MTU_RE, "tun-mtu", m.toString())
                 // mssfix is a UDP-side tuning option; remove it for TCP to avoid a misleading setting.
