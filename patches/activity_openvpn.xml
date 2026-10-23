@@ -91,6 +91,16 @@
                 android:text="@string/openvpn_import"
                 android:textColor="#39FF14"
                 app:strokeColor="#6639FF14" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/openVpnAdvancedButton"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="7dp"
+                android:minHeight="48dp"
+                android:text="@string/openvpn_advanced_title"
+                android:textColor="#39FF14"
+                app:strokeColor="#5539FF14" />
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
