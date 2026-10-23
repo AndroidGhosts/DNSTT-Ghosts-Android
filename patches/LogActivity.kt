@@ -59,10 +59,11 @@ class LogActivity : AppCompatActivity() {
             setTitleTextColor(accent)
             setBackgroundColor(panel)
             setNavigationIcon(androidx.appcompat.R.drawable.abc_ic_ab_back_material)
-            setNavigationOnClickListener { finish() }
         }
         root.addView(toolbar, LinearLayout.LayoutParams(-1, dp(64)))
         setSupportActionBar(toolbar)
+        // Set this AFTER setSupportActionBar: AppCompat may replace the toolbar listener.
+        toolbar.setNavigationOnClickListener { finish() }
 
         scroll = ScrollView(this).apply {
             isFillViewport = true
