@@ -360,7 +360,7 @@ class OpenVPNActivity : AppCompatActivity() {
         val config = runCatching { profile.file.readText(StandardCharsets.UTF_8) }
             .getOrElse { toast(getString(R.string.openvpn_read_failed, profile.name)); return }
         val currentProto = firstMatch(PROTO_RE, config)?.lowercase(Locale.ROOT) ?: "udp"
-        val currentPort = firstMatch(REMOTE_PORT_RE, config)?.toIntOrNull() ?: if (currentProto.startsWith("tcp")) 443 else 1194
+        val currentPort = REMOTE_PORT_RE.find(config)?.groupValues?.getOrNull(2)?.toIntOrNull() ?: if (currentProto.startsWith("tcp")) 443 else 1194
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(8), dp(18), 0)
@@ -412,7 +412,7 @@ class OpenVPNActivity : AppCompatActivity() {
                 val proto = if (tcp) "tcp-client" else "udp"
                 updated = if (PROTO_RE.containsMatchIn(updated)) PROTO_RE.replaceFirst(updated, "proto $proto")
                     else "proto $proto\\n" + updated
-                updated = if (REMOTE_PORT_RE.containsMatchIn(updated)) REMOTE_PORT_RE.replaceFirst(updated, "$" + "1" + p)
+                updated = if (REMOTE_PORT_RE.containsMatchIn(updated)) REMOTE_PORT_RE.replaceFirst(updated) { match -> match.value.replace(match.groupValues[2], p.toString()) }
                     else REMOTE_RE.replaceFirst(updated) { it.value + " $p" }
                 updated = setDirective(updated, TUN_MTU_RE, "tun-mtu", m.toString())
                 // mssfix is a UDP-side tuning option; remove it for TCP to avoid a misleading setting.
