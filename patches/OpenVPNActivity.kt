@@ -641,7 +641,7 @@ class OpenVPNActivity : AppCompatActivity() {
         private val MSSFIX_RE = Regex("(?im)^[ \\t]*mssfix(?:[ \\t]+([0-9]+))?[^\\r\\n]*")
         private val SIDECAR_RE = Regex("(?im)^[ \\t]*(ca|cert|key|tls-auth|tls-crypt|secret|auth-user-pass)[ \\t]+(?:\\\"([^\\\"]+)\\\"|([^ \\t\\r\\n#]+))(?:[ \\t]+([^ \\t\\r\\n#]+))?[^\\r\\n]*")
         private val UNSUPPORTED_EXTERNAL_RE = Regex("(?im)^[ \\t]*(pkcs12|crl-verify|extra-certs|dh)[ \\t]+(?:\\\"([^\\\"]+)\\\"|([^ \\t\\r\\n#]+))[^\\r\\n]*")
-        private val AUTH_USER_PASS_RE = Regex("(?im)^\\s*auth-user-pass\\s*(?:#.*)?")
+        private val AUTH_USER_PASS_RE = Regex("(?im)^[ \\t]*auth-user-pass[ \\t]*(?:#.*)?")
         private val INLINE_AUTH_RE = Regex("(?is)<auth-user-pass>.*?</auth-user-pass>")
     }
 }
