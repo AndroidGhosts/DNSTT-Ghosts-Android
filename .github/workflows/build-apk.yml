@@ -351,8 +351,8 @@ jobs:
           tree = ET.parse(p)
           root = tree.getroot()
           additions = {
-              "brand_subtitle": "نفق DNSTT • SSH • SOCKS5 • HTTP",
-              "brand_note": "إعدادات نفق آمن · Android_Ghosts",
+              "brand_subtitle": "نفق DNSTT • OpenVPN",
+              "brand_note": "نفقان فقط: DNSTT وOpenVPN · Android_Ghosts",
           }
           existing = {node.attrib.get("name") for node in root.findall("string")}
           changed = False
