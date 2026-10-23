@@ -25,6 +25,16 @@ EN = {
 "openvpn_advanced_title":"Advanced OpenVPN settings","openvpn_advanced_help":"Edit the complete .ovpn configuration. All supported OpenVPN directives are preserved. Incorrect settings can prevent connection.",
 "openvpn_save_advanced":"Save settings","openvpn_advanced_saved":"Advanced profile settings saved.",
 "openvpn_advanced_disconnect_first":"Disconnect OpenVPN before editing advanced settings."
+"openvpn_full_config_editor":"Edit full .ovpn configuration",
+"openvpn_transport_assistant":"Transport / DPI compatibility",
+"openvpn_transport_warning":"This adjusts OpenVPN transport settings only. TCP/443 is not a guaranteed DPI bypass; the server must support the selected protocol/port, and real obfuscation requires compatible server-side wrapping.",
+"openvpn_transport_label":"Transport protocol",
+"openvpn_transport_udp":"UDP (usually faster)",
+"openvpn_transport_tcp":"TCP (often 443)",
+"openvpn_remote_port":"Server port (1–65535)",
+"openvpn_tun_mtu":"TUN MTU (1200–9000)",
+"openvpn_mssfix":"UDP MSS fix (500–1460)",
+"openvpn_transport_invalid":"Check port, MTU, and MSS values.",
 }
 AR = {
 "openvpn_title":"نفق OpenVPN","openvpn_open":"OpenVPN • استيراد .ovpn",
@@ -47,6 +57,16 @@ AR = {
 "openvpn_advanced_title":"إعدادات OpenVPN المتقدمة","openvpn_advanced_help":"يمكنك تعديل ملف .ovpn كاملًا مع الحفاظ على توجيهات OpenVPN المدعومة. الإعدادات غير الصحيحة قد تمنع الاتصال.",
 "openvpn_save_advanced":"حفظ الإعدادات","openvpn_advanced_saved":"تم حفظ إعدادات الملف المتقدمة.",
 "openvpn_advanced_disconnect_first":"افصل OpenVPN قبل تعديل الإعدادات المتقدمة."
+"openvpn_full_config_editor":"تعديل ملف .ovpn كاملًا",
+"openvpn_transport_assistant":"مساعد النقل والتوافق مع DPI",
+"openvpn_transport_warning":"هذه الخيارات تعدّل إعدادات النقل فقط. استخدام TCP/443 لا يضمن تجاوز DPI؛ يجب أن يدعم الخادم البروتوكول والمنفذ، والتعمية الحقيقية تحتاج تغليفًا متوافقًا على الخادم أيضًا.",
+"openvpn_transport_label":"بروتوكول النقل",
+"openvpn_transport_udp":"UDP (غالبًا أسرع)",
+"openvpn_transport_tcp":"TCP (غالبًا 443)",
+"openvpn_remote_port":"منفذ الخادم (1–65535)",
+"openvpn_tun_mtu":"حجم MTU للنفق (1200–9000)",
+"openvpn_mssfix":"ضبط MSS لـ UDP (500–1460)",
+"openvpn_transport_invalid":"تحقق من المنفذ وMTU وMSS.",
 }
 ANDROID="http://schemas.android.com/apk/res/android"
 TOOLS="http://schemas.android.com/tools"
