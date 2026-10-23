@@ -22,7 +22,8 @@ EN = {
 "select_tunnel":"Select tunnel / البروتوكول",
 "add_profile_protocol":"Add profile • choose protocol",
 "add_profile_dnstt":"DNSTT profile",
-"add_profile_openvpn":"OpenVPN .ovpn profile","select_dnstt":"DNSTT tunnel","select_openvpn":"OpenVPN tunnel",
+"add_profile_openvpn":"OpenVPN .ovpn profile",
+"openvpn_settings_menu":"OpenVPN settings","select_dnstt":"DNSTT tunnel","select_openvpn":"OpenVPN tunnel",
 "openvpn_switch_disconnect_first":"OpenVPN is active. Disconnect it before switching to DNSTT.",
 "openvpn_switch_disconnect_timeout":"OpenVPN is still disconnecting. Wait a moment and switch again.",
 "openvpn_advanced_title":"Advanced OpenVPN settings","openvpn_advanced_help":"Edit the complete .ovpn configuration. All supported OpenVPN directives are preserved. Incorrect settings can prevent connection.",
@@ -57,7 +58,8 @@ AR = {
 "select_tunnel":"اختيار النفق / البروتوكول",
 "add_profile_protocol":"إضافة ملف تعريفي • اختر البروتوكول",
 "add_profile_dnstt":"ملف تعريفي DNSTT",
-"add_profile_openvpn":"ملف OpenVPN ‏.ovpn","select_dnstt":"نفق DNSTT","select_openvpn":"نفق OpenVPN",
+"add_profile_openvpn":"ملف OpenVPN ‏.ovpn",
+"openvpn_settings_menu":"إعدادات OpenVPN","select_dnstt":"نفق DNSTT","select_openvpn":"نفق OpenVPN",
 "openvpn_switch_disconnect_first":"نفق OpenVPN متصل. افصله قبل التبديل إلى DNSTT.",
 "openvpn_switch_disconnect_timeout":"ما زال OpenVPN يفصل الاتصال. انتظر قليلًا ثم حاول التبديل.",
 "openvpn_advanced_title":"إعدادات OpenVPN المتقدمة","openvpn_advanced_help":"يمكنك تعديل ملف .ovpn كاملًا مع الحفاظ على توجيهات OpenVPN المدعومة. الإعدادات غير الصحيحة قد تمنع الاتصال.",
@@ -134,6 +136,11 @@ def main_activity(path, menu_path):
         if marker not in src: raise SystemExit("Tunnel menu dispatch point not found")
         src=src.replace(marker,'''            R.id.m_add_profile -> showAddProfileChooser()
             R.id.m_tunnel -> showTunnelChooser()''',1)
+    if "R.id.m_openvpn_settings" not in src:
+        marker='''            R.id.m_add_profile -> showAddProfileChooser()'''
+        if marker not in src: raise SystemExit("Add profile menu dispatch point not found")
+        src=src.replace(marker,'''            R.id.m_openvpn_settings -> startActivity(Intent(this, OpenVPNActivity::class.java))
+            R.id.m_add_profile -> showAddProfileChooser()''',1)
     if "private fun showAddProfileChooser()" not in src:
         marker="    private fun showTunnelChooser() {"
         if marker not in src: raise SystemExit("Tunnel chooser method not found")
@@ -176,6 +183,8 @@ def main_activity(path, menu_path):
         items.append('    <item android:id="@+id/m_tunnel" android:title="@string/select_tunnel" android:icon="@drawable/ic_more" app:showAsAction="always" />')
     if '@+id/m_add_profile' not in menu:
         items.append('    <item android:id="@+id/m_add_profile" android:title="@string/add_profile_protocol" android:icon="@android:drawable/ic_input_add" app:showAsAction="never" />')
+    if '@+id/m_openvpn_settings' not in menu:
+        items.append('    <item android:id="@+id/m_openvpn_settings" android:title="@string/openvpn_settings_menu" app:showAsAction="never" />')
     if items:
         menu=menu.replace("</menu>","\\n"+"\\n".join(items)+"\\n</menu>")
         menu_path.write_text(menu,encoding="utf-8")
