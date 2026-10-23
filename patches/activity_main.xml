@@ -15,8 +15,15 @@
         android:layout_width="match_parent" android:layout_height="match_parent"
         android:background="#FF070D0A">
 
+        <com.androidghosts.dnsttghosts.MatrixRainView
+            android:id="@+id/matrixRainBackground"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no" />
+
         <androidx.core.widget.NestedScrollView
             android:layout_width="match_parent" android:layout_height="match_parent"
+            android:background="@android:color/transparent"
             android:fillViewport="true" android:clipToPadding="false">
 
             <LinearLayout
@@ -121,8 +128,8 @@
                                 android:text="@string/chart_session" />
                             <com.androidghosts.dnsttghosts.TrafficChartView
                                 android:id="@+id/trafficChart"
-                                android:layout_width="match_parent" android:layout_height="100dp"
-                                android:layout_marginTop="4dp" />
+                                android:layout_width="match_parent" android:layout_height="140dp"
+                                android:layout_marginTop="8dp" />
                             <TextView
                                 android:id="@+id/chartSummary"
                                 android:layout_width="match_parent" android:layout_height="wrap_content"
