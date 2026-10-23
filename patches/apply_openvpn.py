@@ -7,7 +7,7 @@ from xml.sax.saxutils import escape
 EN = {
 "openvpn_title":"OpenVPN tunnel","openvpn_open":"OpenVPN • Import .ovpn",
 "openvpn_help":"Import a ready .ovpn profile. Select the profile with its referenced text certificate/key files together. Android allows one VPN tunnel at a time, so disconnect DNSTT first.",
-"openvpn_disconnected":"Disconnected","openvpn_connecting":"Connecting to OpenVPN…","openvpn_disconnecting":"Disconnecting…","openvpn_connected":"OpenVPN connected","openvpn_failed":"Connection failed",
+"openvpn_disconnected":"Disconnected","openvpn_connecting":"Connecting to OpenVPN…","openvpn_disconnecting":"Disconnecting…","openvpn_connected":"OpenVPN connected","openvpn_failed":"Connection failed","openvpn_timeout":"Connection timed out; the pending attempt was stopped.",
 "openvpn_traffic":"Received %1$s   •   Sent %2$s","openvpn_import":"Import .ovpn profile / certificates","openvpn_connect":"Connect","openvpn_disconnect":"Disconnect","openvpn_profiles":"Saved profiles",
 "openvpn_no_profiles":"No OpenVPN profiles yet. Import a ready .ovpn file to begin.","openvpn_profile_detail":"OpenVPN profile","openvpn_delete_profile":"Delete profile","openvpn_confirm_delete":"Delete “%1$s” from this device?",
 "openvpn_disconnect_before_delete":"Disconnect OpenVPN before deleting profiles.","openvpn_select_config":"Select .ovpn/.conf and its referenced text certificate/key files together.",
@@ -43,7 +43,7 @@ EN = {
 AR = {
 "openvpn_title":"نفق OpenVPN","openvpn_open":"OpenVPN • استيراد .ovpn",
 "openvpn_help":"استورد ملف .ovpn جاهزًا مع ملفات الشهادة والمفتاح النصية المرتبطة به. يسمح Android بنفق VPN واحد فقط؛ افصل DNSTT أولًا.",
-"openvpn_disconnected":"غير متصل","openvpn_connecting":"جارٍ الاتصال بـ OpenVPN…","openvpn_disconnecting":"جارٍ قطع الاتصال…","openvpn_connected":"OpenVPN متصل","openvpn_failed":"فشل الاتصال",
+"openvpn_disconnected":"غير متصل","openvpn_connecting":"جارٍ الاتصال بـ OpenVPN…","openvpn_disconnecting":"جارٍ قطع الاتصال…","openvpn_connected":"OpenVPN متصل","openvpn_failed":"فشل الاتصال","openvpn_timeout":"انتهت مهلة الاتصال؛ تم إيقاف المحاولة الجارية.",
 "openvpn_traffic":"المستلم %1$s   •   المرسل %2$s","openvpn_import":"استيراد ملف .ovpn / الشهادات","openvpn_connect":"اتصال","openvpn_disconnect":"قطع الاتصال","openvpn_profiles":"الملفات المحفوظة",
 "openvpn_no_profiles":"لا توجد ملفات OpenVPN. استورد ملف .ovpn جاهزًا للبدء.","openvpn_profile_detail":"ملف OpenVPN","openvpn_delete_profile":"حذف الملف","openvpn_confirm_delete":"هل تريد حذف «%1$s»؟",
 "openvpn_disconnect_before_delete":"افصل OpenVPN قبل حذف الملفات.","openvpn_select_config":"اختر ملف .ovpn/.conf مع ملفات الشهادة والمفتاح النصية المشار إليها.",
