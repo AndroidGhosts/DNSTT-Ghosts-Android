@@ -417,6 +417,23 @@ jobs:
           print(f"Preflight passed: XML, {len(strings)} localized string names, custom view sources, and {len(required)} Activity IDs.")
           PY
 
+      - name: Package patched project source for integration audit
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set -euo pipefail
+          tar --exclude='./.git' --exclude='./.gradle' --exclude='*/build' --exclude='**/build' -czf "${GITHUB_WORKSPACE}/dnstt-source-audit.tar.gz" .
+          test -s "${GITHUB_WORKSPACE}/dnstt-source-audit.tar.gz"
+          ls -lh "${GITHUB_WORKSPACE}/dnstt-source-audit.tar.gz"
+
+      - name: Upload source audit bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: DNSTT-Ghosts-SOURCE-AUDIT
+          path: dnstt-source-audit.tar.gz
+          if-no-files-found: error
+          retention-days: 3
+
       - name: Build ARM64 APK for Samsung Galaxy A56
         shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
