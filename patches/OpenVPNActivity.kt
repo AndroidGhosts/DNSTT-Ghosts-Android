@@ -254,13 +254,13 @@ class OpenVPNActivity : AppCompatActivity() {
                     "auth-user-pass" -> {
                         val lines = content.lines()
                         if (lines.size < 2 || lines[0].isBlank()) { missing += referenced; match.value }
-                        else "<auth-user-pass>\\n" + lines[0] + "\\n" + lines[1] + "\\n</auth-user-pass>"
+                        else "<auth-user-pass>\n" + lines[0] + "\n" + lines[1] + "\n</auth-user-pass>"
                     }
                     else -> {
                         if (content.isBlank()) { missing += referenced; match.value }
                         else {
                             val block = "<" + directive + ">\\n" + content + "\\n</" + directive + ">"
-                            if (directive == "tls-auth" && option.isNotBlank()) block + "\\nkey-direction " + option else block
+                            if (directive == "tls-auth" && option.isNotBlank()) block + "\nkey-direction " + option else block
                         }
                     }
                 }
@@ -275,9 +275,9 @@ class OpenVPNActivity : AppCompatActivity() {
     }
 
     private fun validateConfig(config: String) {
-        require(config.isNotBlank() && !config.startsWith("PK\\u0003\\u0004")) { getString(R.string.openvpn_invalid_profile) }
+        require(config.isNotBlank() && !config.startsWith("PK\u0003\u0004")) { getString(R.string.openvpn_invalid_profile) }
         require(REMOTE_RE.containsMatchIn(config)) { getString(R.string.openvpn_no_remote) }
-        require(!Regex("(?im)^\\\\s*(?:server|tls-server)\\\\s*$").containsMatchIn(config)) {
+        require(!Regex("(?im)^\\s*(?:server|tls-server)\\s*$").containsMatchIn(config)) {
             getString(R.string.openvpn_server_config)
         }
         require(!UNSUPPORTED_EXTERNAL_RE.containsMatchIn(config)) {
@@ -335,11 +335,11 @@ class OpenVPNActivity : AppCompatActivity() {
         dialog.setOnShowListener {
             dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val u = user.text.toString(); val p = pass.text.toString()
-                if (u.isBlank() || p.isBlank() || u.contains('\\n') || u.contains('\\r') || p.contains('\\n') || p.contains('\\r')) {
+                if (u.isBlank() || p.isBlank() || u.contains('\n') || u.contains('\r') || p.contains('\n') || p.contains('\r')) {
                     toast(getString(R.string.openvpn_credentials_invalid)); return@setOnClickListener
                 }
                 val inline = AUTH_USER_PASS_RE.replace(config) {
-                    "<auth-user-pass>\\n" + u + "\\n" + p + "\\n</auth-user-pass>"
+                    "<auth-user-pass>\n" + u + "\n" + p + "\n</auth-user-pass>"
                 }
                 dialog.dismiss()
                 requestVpnConsent(name, inline)
@@ -410,11 +410,11 @@ class OpenVPNActivity : AppCompatActivity() {
         private const val PREFS = "openvpn_profiles"
         private const val KEY_SELECTED = "selected_id"
         private const val MAX_FILE_BYTES = 5 * 1024 * 1024
-        private val REMOTE_RE = Regex("(?im)^\\\\s*remote\\\\s+([^\\\\s#]+)")
-        private val PROTO_RE = Regex("(?im)^\\\\s*proto\\\\s+([^\\\\s#]+)")
-        private val SIDECAR_RE = Regex("(?im)^\\\\s*(ca|cert|key|tls-auth|tls-crypt|secret|auth-user-pass)\\\\s+(?:\\\"([^\\\"]+)\\\"|([^\\\\s#]+))(?:\\\\s+([^\\\\s#]+))?[^\\\\n]*")
-        private val UNSUPPORTED_EXTERNAL_RE = Regex("(?im)^\\\\s*(pkcs12|crl-verify|extra-certs|dh)\\\\s+(?:\\\"([^\\\"]+)\\\"|([^\\\\s#]+))[^\\\\n]*")
-        private val AUTH_USER_PASS_RE = Regex("(?im)^\\\\s*auth-user-pass\\\\s*(?:#.*)?")
+        private val REMOTE_RE = Regex("(?im)^\\s*remote\\s+([^\\s#]+)")
+        private val PROTO_RE = Regex("(?im)^\\s*proto\\s+([^\\s#]+)")
+        private val SIDECAR_RE = Regex("(?im)^\\s*(ca|cert|key|tls-auth|tls-crypt|secret|auth-user-pass)\\s+(?:\"([^\"]+)""|([^\\s#]+))(?:\\s+([^\\s#]+))?[^\\n]*")
+        private val UNSUPPORTED_EXTERNAL_RE = Regex("(?im)^\\s*(pkcs12|crl-verify|extra-certs|dh)\\s+(?:\"([^\"]+)""|([^\\s#]+))[^\\n]*")
+        private val AUTH_USER_PASS_RE = Regex("(?im)^\\s*auth-user-pass\\s*(?:#.*)?")
         private val INLINE_AUTH_RE = Regex("(?is)<auth-user-pass>.*?</auth-user-pass>")
     }
 }
