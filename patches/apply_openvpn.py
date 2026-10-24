@@ -128,8 +128,8 @@ def gradle(app_path,settings_path):
         marker='    implementation(files("libs/ghostcore.aar"))'
         if marker not in src: raise SystemExit("ghostcore dependency marker missing; DNSTT cannot be altered")
         src=src.replace(marker,marker+'\n    implementation("network.mysterium.openvpn:icsopenvpn:0.7.55-myst")',1)
-    src=re.sub(r'versionCode\s*=\s*\d+',"versionCode = 13",src,count=1)
-    src=re.sub(r'versionName\s*=\s*"[^"]+"','versionName = "1.4.9-openvpn-arm64"',src,count=1)
+    # Keep the upstream version intact here. The workflow applies the release version
+    # after all feature patches, so its version gate remains deterministic.
     if "jniLibs.useLegacyPackaging = true" not in src: raise SystemExit("Missing required JNI legacy packaging")
     app_path.write_text(src,encoding="utf-8")
     settings=settings_path.read_text(encoding="utf-8")
