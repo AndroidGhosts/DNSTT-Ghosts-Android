@@ -84,6 +84,12 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
                 parseConfig(StringReader(boundedConfig))
                 convertProfile()
             }
+            // Match the upstream ics-openvpn launch path: reject profiles that the
+            // engine itself considers incomplete before starting the foreground service.
+            val profileCheck = profile.checkProfile(appContext)
+            require(profileCheck == de.blinkt.openvpn.R.string.no_error_found) {
+                appContext.getString(profileCheck)
+            }
             require(!needsKeystoreCertificate(profile)) {
                 "This profile requires a client certificate from Android KeyChain. Embed the client certificate and private key inside the .ovpn file or import the matching text certificate/key files together."
             }
