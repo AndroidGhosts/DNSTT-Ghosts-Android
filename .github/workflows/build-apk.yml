@@ -85,7 +85,7 @@ jobs:
           PY
           grep -n -A12 'verifyGhostcoreArm64' app/build.gradle.kts
 
-      - name: Extend app behind status bar and camera cutout
+      - name: Prevent content from overlapping status bar and camera cutout
         shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
@@ -116,12 +116,11 @@ jobs:
                   }
                   window.statusBarColor = android.graphics.Color.TRANSPARENT
                   window.navigationBarColor = android.graphics.Color.TRANSPARENT
+                  // Keep content inside safe system-bar insets. The previous fullscreen flags
+                  // combined with fitsSystemWindows on every root caused content to jump upward
+                  // or receive inconsistent insets across screens on Samsung devices.
                   @Suppress("DEPRECATION")
-                  window.decorView.systemUiVisibility = (
-                      android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                      or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                      or android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                  )
+                  window.decorView.systemUiVisibility = 0
           """
           java = """
                   // GHOSTS_EDGE_TO_EDGE_STATUS_BAR: draw behind status bar and into the display cutout area.
