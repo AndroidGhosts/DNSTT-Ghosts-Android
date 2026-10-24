@@ -160,6 +160,33 @@ jobs:
           print(f"Enabled edge-to-edge status bar/cutout layout in {p}")
           PY
 
+      - name: Apply Android_Ghosts professional native home screen
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set -euo pipefail
+          test -s "${GITHUB_WORKSPACE}/patches/activity_main.xml"
+          test -d "app/src/main/res/layout"
+          cp "${GITHUB_WORKSPACE}/patches/activity_main.xml" "app/src/main/res/layout/activity_main.xml"
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          p = Path("app/src/main/res/layout/activity_main.xml")
+          root = ET.parse(p).getroot()
+          ids = {node.attrib.get("{http://schemas.android.com/apk/res/android}id", "") for node in root.iter()}
+          required = {
+              "@+id/toolbar", "@+id/telegramLink", "@+id/connectButton",
+              "@+id/connectText", "@+id/statusText", "@+id/profileText",
+              "@+id/statsGrid", "@+id/trafficChart", "@+id/chartSummary",
+              "@+id/chartWindowButton", "@+id/profileList", "@+id/testButton",
+              "@+id/fab", "@+id/emptyText"
+          }
+          missing = sorted(required - ids)
+          if missing:
+              raise SystemExit("Missing Activity view IDs: " + ", ".join(missing))
+          print(f"Professional native layout XML validated; {len(required)} required view IDs preserved.")
+          PY
+
       - name: Apply adaptive accessible phone layout to all screens
         shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
@@ -250,33 +277,6 @@ jobs:
                   print(f"Updated layout file: {p.name}")
 
           print("Successfully applied fitsSystemWindows to all layout screens and adaptive layout to main activity.")
-          PY
-
-      - name: Apply Android_Ghosts professional native home screen
-        shell: bash
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          set -euo pipefail
-          test -s "${GITHUB_WORKSPACE}/patches/activity_main.xml"
-          test -d "app/src/main/res/layout"
-          cp "${GITHUB_WORKSPACE}/patches/activity_main.xml" "app/src/main/res/layout/activity_main.xml"
-          python3 - <<'PY'
-          import xml.etree.ElementTree as ET
-          from pathlib import Path
-          p = Path("app/src/main/res/layout/activity_main.xml")
-          root = ET.parse(p).getroot()
-          ids = {node.attrib.get("{http://schemas.android.com/apk/res/android}id", "") for node in root.iter()}
-          required = {
-              "@+id/toolbar", "@+id/telegramLink", "@+id/connectButton",
-              "@+id/connectText", "@+id/statusText", "@+id/profileText",
-              "@+id/statsGrid", "@+id/trafficChart", "@+id/chartSummary",
-              "@+id/chartWindowButton", "@+id/profileList", "@+id/testButton",
-              "@+id/fab", "@+id/emptyText"
-          }
-          missing = sorted(required - ids)
-          if missing:
-              raise SystemExit("Missing Activity view IDs: " + ", ".join(missing))
-          print(f"Professional native layout XML validated; {len(required)} required view IDs preserved.")
           PY
 
       - name: Install animated Matrix rain background
@@ -486,6 +486,28 @@ jobs:
           sha256sum "$APK" > "$APK.sha256"
           cat "$APK.sha256"
           ls -lh "$APK" "$APK.sha256"
+
+      - name: Validate APK signature, install metadata, and alignment
+        shell: bash
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          set -euo pipefail
+          APK="dist/app-arm64-v8a-debug.apk"
+          BUILD_TOOLS="${ANDROID_HOME}/build-tools/36.0.0"
+          test -x "$BUILD_TOOLS/apksigner"
+          test -x "$BUILD_TOOLS/aapt"
+          test -x "$BUILD_TOOLS/zipalign"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK"
+          BADGING="$("$BUILD_TOOLS/aapt" dump badging "$APK")"
+          printf '%s\n' "$BADGING" | grep -E '^(package:|sdkVersion:|targetSdkVersion:|native-code:)'
+          printf '%s\n' "$BADGING" | grep -q "^package: name='"
+          MIN_SDK="$(printf '%s\n' "$BADGING" | sed -n "s/^sdkVersion:'\\([0-9][0-9]*\\)'.*/\\1/p" | head -1)"
+          if [ -n "$MIN_SDK" ] && [ "$MIN_SDK" -gt 35 ]; then
+            echo "::error::APK minSdkVersion ($MIN_SDK) exceeds Android 15 API 35; it will not install on Android 15 devices."
+            exit 1
+          fi
+          "$BUILD_TOOLS/zipalign" -c -v 4 "$APK"
+          echo "APK signature, manifest metadata, and ZIP alignment checks passed."
 
       - name: Upload ARM64 APK and checksum artifact
         uses: actions/upload-artifact@v4
