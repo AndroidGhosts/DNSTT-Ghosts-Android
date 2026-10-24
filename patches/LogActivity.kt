@@ -59,8 +59,7 @@ class LogActivity : AppCompatActivity() {
 
     private fun combinedLogs(): List<String> {
         val appLines = LogBuffer.all().lineSequence().filter(String::isNotBlank).toList()
-        val vpnLines = OpenVPNEngine.diagnostics().lineSequence().filter(String::isNotBlank).toList()
-        return (appLines + vpnLines).distinct().takeLast(500)
+        return appLines.distinct().takeLast(500)
     }
 
     override fun onResume() {
