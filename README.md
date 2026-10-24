@@ -5,7 +5,7 @@ A phone-first Android DNSTT client branded **Android_Ghosts**, intended for ARM6
 ## Scope
 
 - **DNSTT only** — uses the project's bundled `ghostcore.aar`.
-- No OpenVPN engine, `.ovpn` importer, OpenVPN settings, OpenVPN diagnostics, or OpenVPN-specific dependencies are included in this build.
+- Only DNSTT components are included; other tunnel engines and profile importers are excluded from this build.
 - The app keeps its dark green/cyan Android interface, animated Matrix-style background, profile controls, traffic chart, latency test, and diagnostic log screen.
 
 ## Build an APK
