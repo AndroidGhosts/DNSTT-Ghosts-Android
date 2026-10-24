@@ -147,7 +147,7 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
     ) {
         // Preserve only short, useful diagnostic messages; never log the profile or credentials.
         if (!logmessage.isNullOrBlank() && Regex(
-                "(?i)(auth_failed|tls error|resolve|connection refused|network is unreachable|certificate verify failed|unsupported option|cannot load|failed)"
+                "(?i)(auth_failed|auth failed|tls|ssl|resolve|unreachable|refused|timed out|timeout|certificate|verify|unsupported option|cannot load|failed|error|fatal|no route|network is down|cannot assign requested address|tun interface|permission denied|cannot open)"
             ).containsMatchIn(logmessage)
         ) {
             lastError = logmessage.trim().take(220)
