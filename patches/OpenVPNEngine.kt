@@ -108,13 +108,15 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
         }
     }
 
-    /** Replace unbounded retry directives while preserving the rest of the imported profile. */
-    private fun applyConnectionLimits(config: String): String {
-        val withoutOverrides = config.lineSequence()
-            .filterNot { line -> line.trimStart().matches(Regex("(?i)^(connect-retry|connect-retry-max|connect-timeout)(\\s+.*)?$")) }
-            .joinToString("\n")
-        return withoutOverrides.trimEnd() + "\nconnect-timeout 10\nconnect-retry 5 15\nconnect-retry-max 3\n"
-    }
+    /**
+     * Keep the imported profile intact. These retry directives are ignored by the
+     * bundled OpenVPN 3 core, so rewriting them here falsely suggests they are enforced
+     * and can make exported/debugged profiles differ from what the user imported.
+     */
+    private fun applyConnectionLimits(config: String): String = config
+        .removePrefix("\uFEFF")
+        .replace("\r\n", "\n")
+        .replace('\r', '\n')
 
     private fun needsKeystoreCertificate(profile: VpnProfile): Boolean = when (profile.mAuthenticationType) {
         VpnProfile.TYPE_KEYSTORE, VpnProfile.TYPE_USERPASS_KEYSTORE, VpnProfile.TYPE_EXTERNAL_APP -> profile.mAlias == null
