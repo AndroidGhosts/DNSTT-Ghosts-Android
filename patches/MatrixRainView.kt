@@ -92,7 +92,6 @@ class MatrixRainView @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
-        removeCallbacks(null)
         super.onDetachedFromWindow()
     }
 }
