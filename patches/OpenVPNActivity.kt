@@ -308,7 +308,7 @@ class OpenVPNActivity : AppCompatActivity() {
             }
         }
         val protocol = firstMatch(PROTO_RE, config)?.lowercase(Locale.ROOT)
-        require(protocol == null || protocol in setOf("udp", "tcp", "tcp-client", "tcp4", "tcp6", "udp4", "udp6")) {
+        require(protocol == null || protocol in setOf("udp", "udp4", "udp6", "tcp", "tcp-client", "tcp4", "tcp6", "tcp4-client", "tcp6-client")) {
             "Unsupported or invalid proto directive: $protocol"
         }
         require(!Regex("(?im)^[ \t]*(?:server|tls-server)[ \t]*$").containsMatchIn(config)) {
@@ -321,7 +321,7 @@ class OpenVPNActivity : AppCompatActivity() {
     }
 
     private fun validateInlineBlocks(config: String) {
-        val tagRegex = Regex("(?im)^[ \t]*<(/?)(ca|cert|key|tls-auth|tls-crypt|pkcs12|extra-certs|dh|crl-verify)>[ \t]*$")
+        val tagRegex = Regex("(?im)^[ \t]*<(/?)(ca|cert|key|tls-auth|tls-crypt|tls-crypt-v2|secret|pkcs12|extra-certs|dh|crl-verify)>[ \t]*$")
         val stack = ArrayDeque<String>()
         for (match in tagRegex.findAll(config)) {
             val closing = match.groupValues[1] == "/"
