@@ -314,6 +314,9 @@ class OpenVPNActivity : AppCompatActivity() {
         require(!Regex("(?im)^[ \t]*(?:server|tls-server)[ \t]*$").containsMatchIn(config)) {
             getString(R.string.openvpn_server_config)
         }
+        require(!Regex("(?im)^[ \t]*(?:dev[ \t]+tap|dev-type[ \t]+tap)(?:[ \t]|$)").containsMatchIn(config)) {
+            "This profile uses TAP/bridged networking. The bundled OpenVPN 3 engine supports routed TUN profiles only; export a TUN client profile from the VPN server."
+        }
         require(!UNSUPPORTED_EXTERNAL_RE.containsMatchIn(config)) {
             getString(R.string.openvpn_sidecars_missing, UNSUPPORTED_EXTERNAL_RE.find(config)?.value ?: "")
         }
