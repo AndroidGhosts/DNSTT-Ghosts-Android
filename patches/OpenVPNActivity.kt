@@ -298,6 +298,19 @@ class OpenVPNActivity : AppCompatActivity() {
         val config = normalizeProfileText(rawConfig)
         require(config.isNotBlank() && !config.startsWith("PK\u0003\u0004")) { getString(R.string.openvpn_invalid_profile) }
         require(REMOTE_RE.containsMatchIn(config)) { getString(R.string.openvpn_no_remote) }
+        val remotes = Regex("(?im)^[ \\t]*remote[ \\t]+([^ \\t\\r\\n#]+)(?:[ \\t]+([0-9]{1,5}))?").findAll(config).toList()
+        require(remotes.isNotEmpty()) { getString(R.string.openvpn_no_remote) }
+        remotes.forEach { match ->
+            val host = match.groupValues[1]
+            val port = match.groupValues.getOrNull(2)?.takeIf { it.isNotBlank() }?.toIntOrNull()
+            require(host.isNotBlank() && (port == null || port in 1..65535)) {
+                "Invalid OpenVPN remote address or port. Check the remote host and port in the profile."
+            }
+        }
+        val protocol = firstMatch(PROTO_RE, config)?.lowercase(Locale.ROOT)
+        require(protocol == null || protocol in setOf("udp", "tcp", "tcp-client", "tcp4", "tcp6", "udp4", "udp6")) {
+            "Unsupported or invalid proto directive: $protocol"
+        }
         require(!Regex("(?im)^[ \t]*(?:server|tls-server)[ \t]*$").containsMatchIn(config)) {
             getString(R.string.openvpn_server_config)
         }
@@ -372,7 +385,7 @@ class OpenVPNActivity : AppCompatActivity() {
         if (OpenVPNEngine.state != "DISCONNECTED") {
             toast(getString(R.string.openvpn_advanced_disconnect_first)); return
         }
-        val config = runCatching { profile.file.readText(StandardCharsets.UTF_8) }
+        val config = runCatching { normalizeProfileText(profile.file.readText(StandardCharsets.UTF_8)) }
             .getOrElse { toast(getString(R.string.openvpn_read_failed, profile.name)); return }
         val currentProto = firstMatch(PROTO_RE, config)?.lowercase(Locale.ROOT) ?: "udp"
         val currentPort = REMOTE_PORT_RE.find(config)?.groupValues?.getOrNull(2)?.toIntOrNull() ?: if (currentProto.startsWith("tcp")) 443 else 1194
@@ -426,7 +439,7 @@ class OpenVPNActivity : AppCompatActivity() {
                 var updated = config
                 val proto = if (tcp) "tcp-client" else "udp"
                 updated = if (PROTO_RE.containsMatchIn(updated)) PROTO_RE.replaceFirst(updated, "proto $proto")
-                    else "proto $proto\\n" + updated
+                    else "proto $proto\n" + updated
                 val remotePortMatch = REMOTE_PORT_RE.find(updated)
                 updated = if (remotePortMatch != null) {
                     val relativeStart = remotePortMatch.groups[2]!!.range.first - remotePortMatch.range.first
@@ -441,6 +454,8 @@ class OpenVPNActivity : AppCompatActivity() {
                 // mssfix is a UDP-side tuning option; remove it for TCP to avoid a misleading setting.
                 updated = if (tcp) MSSFIX_RE.replace(updated, "") else setDirective(updated, MSSFIX_RE, "mssfix", ms.toString())
                 try {
+                    updated = normalizeProfileText(updated)
+                    validateConfig(updated)
                     profile.file.writeText(updated, StandardCharsets.UTF_8)
                     File(folder(), profile.id + ".meta").writeText(
                         JSONObject().put("name", profile.name)
@@ -460,7 +475,7 @@ class OpenVPNActivity : AppCompatActivity() {
 
     private fun setDirective(config: String, regex: Regex, name: String, value: String): String {
         return if (regex.containsMatchIn(config)) regex.replaceFirst(config, "$name $value")
-        else config.trimEnd() + "\\n$name $value\\n"
+        else config.trimEnd() + "\n$name $value\n"
     }
 
     private fun showAdvancedEditor() {
