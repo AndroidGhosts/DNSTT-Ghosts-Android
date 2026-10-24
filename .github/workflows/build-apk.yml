@@ -465,26 +465,34 @@ jobs:
           test -s dist/app-arm64-v8a-debug.apk
           ls -lh dist/app-arm64-v8a-debug.apk
 
-      - name: Verify ARM64 APK artifact
+      - name: Verify ARM64 APK and generate checksum
         shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           set -euo pipefail
-          for apk in dist/*.apk; do
-            test -s "$apk"
-            echo "APK ready: $apk"
-            ls -lh "$apk"
-            if command -v aapt >/dev/null 2>&1; then
-              aapt dump badging "$apk" | grep -E '^(package:|native-code:)' || true
-            fi
-          done
-          test -s dist/app-arm64-v8a-debug.apk
-          test "$(find dist -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 1
+          APK="dist/app-arm64-v8a-debug.apk"
+          test -s "$APK"
+          unzip -t "$APK"
+          LIBS="$(unzip -Z1 "$APK" | grep -E '^lib/[^/]+/' | cut -d/ -f2 | sort -u || true)"
+          echo "Native ABI directories in APK: ${LIBS:-none}"
+          echo "$LIBS" | grep -qx 'arm64-v8a'
+          if echo "$LIBS" | grep -Ev '^(arm64-v8a)$'; then
+            echo "::error::APK contains an ABI other than arm64-v8a."
+            exit 1
+          fi
+          if command -v aapt >/dev/null 2>&1; then
+            aapt dump badging "$APK" | grep -E '^(package:|native-code:)'
+          fi
+          sha256sum "$APK" > "$APK.sha256"
+          cat "$APK.sha256"
+          ls -lh "$APK" "$APK.sha256"
 
-      - name: Upload ARM64 APK
+      - name: Upload ARM64 APK and checksum artifact
         uses: actions/upload-artifact@v4
         with:
           name: DNSTT-Ghosts-ARM64-APK
-          path: ${{ env.PROJECT_DIR }}/dist/*.apk
+          path: |
+            ${{ env.PROJECT_DIR }}/dist/app-arm64-v8a-debug.apk
+            ${{ env.PROJECT_DIR }}/dist/app-arm64-v8a-debug.apk.sha256
           if-no-files-found: error
           retention-days: 14
