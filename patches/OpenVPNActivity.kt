@@ -248,7 +248,7 @@ class OpenVPNActivity : AppCompatActivity() {
             out.toByteArray()
         } ?: throw IllegalArgumentException(getString(R.string.openvpn_read_failed, displayName))
         val isBinary = displayName.endsWith(".p12", true) || displayName.endsWith(".pfx", true) || bytes.take(2048).any { it == 0.toByte() }
-        return Document(displayName, if (isBinary) null else String(bytes, StandardCharsets.UTF_8).removePrefix("\uFEFF"))
+        return Document(displayName, if (isBinary) null else normalizeProfileText(String(bytes, StandardCharsets.UTF_8)))
     }
 
     private fun inlineSidecars(config: String, docs: List<Document>): String {
@@ -291,14 +291,40 @@ class OpenVPNActivity : AppCompatActivity() {
         return result
     }
 
-    private fun validateConfig(config: String) {
+    private fun normalizeProfileText(text: String): String =
+        text.removePrefix("\uFEFF").replace("\r\n", "\n").replace('\r', '\n')
+
+    private fun validateConfig(rawConfig: String) {
+        val config = normalizeProfileText(rawConfig)
         require(config.isNotBlank() && !config.startsWith("PK\u0003\u0004")) { getString(R.string.openvpn_invalid_profile) }
         require(REMOTE_RE.containsMatchIn(config)) { getString(R.string.openvpn_no_remote) }
-        require(!Regex("(?im)^\\s*(?:server|tls-server)\\s*$").containsMatchIn(config)) {
+        require(!Regex("(?im)^[ \t]*(?:server|tls-server)[ \t]*$").containsMatchIn(config)) {
             getString(R.string.openvpn_server_config)
         }
         require(!UNSUPPORTED_EXTERNAL_RE.containsMatchIn(config)) {
             getString(R.string.openvpn_sidecars_missing, UNSUPPORTED_EXTERNAL_RE.find(config)?.value ?: "")
+        }
+        validateInlineBlocks(config)
+    }
+
+    private fun validateInlineBlocks(config: String) {
+        val tagRegex = Regex("(?im)^[ \t]*<(/?)(ca|cert|key|tls-auth|tls-crypt|pkcs12|extra-certs|dh|crl-verify)>[ \t]*$")
+        val stack = ArrayDeque<String>()
+        for (match in tagRegex.findAll(config)) {
+            val closing = match.groupValues[1] == "/"
+            val tag = match.groupValues[2].lowercase(Locale.ROOT)
+            if (!closing) {
+                require(stack.isEmpty()) { "OpenVPN profile has nested inline block <$tag>." }
+                stack.addLast(tag)
+            } else {
+                require(stack.isNotEmpty() && stack.last() == tag) {
+                    "OpenVPN profile has an unmatched closing inline tag for " + tag + "."
+                }
+                stack.removeLast()
+            }
+        }
+        require(stack.isEmpty()) {
+            "OpenVPN profile is missing the closing inline tag for " + stack.last() + ". Re-import the original .ovpn file."
         }
     }
 
@@ -467,14 +493,9 @@ class OpenVPNActivity : AppCompatActivity() {
             .create()
         dialog.setOnShowListener {
             dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val config = editor.text.toString()
+                val config = normalizeProfileText(editor.text.toString())
                 try {
-                    require(config.isNotBlank() && REMOTE_RE.containsMatchIn(config)) {
-                        getString(R.string.openvpn_no_remote)
-                    }
-                    require(!Regex("(?im)^[ \\t]*(?:server|tls-server)[ \\t]*$").containsMatchIn(config)) {
-                        getString(R.string.openvpn_server_config)
-                    }
+                    validateConfig(config)
                     profile.file.writeText(config, StandardCharsets.UTF_8)
                     File(folder(), profile.id + ".meta").writeText(
                         JSONObject().put("name", profile.name)
@@ -511,8 +532,13 @@ class OpenVPNActivity : AppCompatActivity() {
                 .setMessage(R.string.openvpn_close_other_vpn).setPositiveButton(R.string.ok, null).show()
             return
         }
-        val config = runCatching { p.file.readText(StandardCharsets.UTF_8) }
-            .getOrElse { toast(getString(R.string.openvpn_read_failed, p.name)); return }
+        val config = runCatching { normalizeProfileText(p.file.readText(StandardCharsets.UTF_8)).also { validateConfig(it) } }
+            .getOrElse { error ->
+                MaterialAlertDialogBuilder(this).setTitle(R.string.openvpn_import_failed)
+                    .setMessage(error.message ?: getString(R.string.openvpn_invalid_profile))
+                    .setPositiveButton(R.string.ok, null).show()
+                return
+            }
         if (AUTH_USER_PASS_RE.containsMatchIn(config) && !INLINE_AUTH_RE.containsMatchIn(config)) askCredentials(p.id, p.name, config)
         else requestVpnConsent(p.name, config)
     }
