@@ -2,7 +2,7 @@ name: Build DNSTT Ghosts APK (ARM64)
 
 on:
   push:
-    branches: [main, openvpn-integration]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -15,19 +15,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-
-      - name: Fetch and verify pinned OpenVPN engine
-        shell: bash
-        run: |
-          set -euo pipefail
-          OPENVPN_REPO="${GITHUB_WORKSPACE}/openvpn_dart"
-          git clone --no-checkout https://github.com/mysteriumnetwork/openvpn_dart.git "$OPENVPN_REPO"
-          git -C "$OPENVPN_REPO" checkout --detach 260c4445c4180af04f9a8bf2752d485b0b113a63
-          test "$(git -C "$OPENVPN_REPO" rev-parse HEAD)" = "260c4445c4180af04f9a8bf2752d485b0b113a63"
-          AAR="$OPENVPN_REPO/android/localmaven/network/mysterium/openvpn/icsopenvpn/0.7.55-myst/icsopenvpn-0.7.55-myst.aar"
-          test -s "$AAR"
-          echo "3540c8579b0056baac517cb6c930d9d9fb19cbbdf6216e4353fce5513aee50f6  $AAR" | sha256sum --check -
-          echo "Pinned OpenVPN engine verified against provenance SHA-256."
 
       - name: Locate and extract uploaded source ZIP
         shell: bash
@@ -350,27 +337,20 @@ jobs:
               raise SystemExit("Arabic resources file not found: values-ar/strings.xml")
           tree = ET.parse(p)
           root = tree.getroot()
-          additions = {
-              "brand_subtitle": "نفق DNSTT • OpenVPN",
-              "brand_note": "نفقان فقط: DNSTT وOpenVPN · Android_Ghosts",
+          replacements = {
+              "brand_subtitle": "نفق DNS • Android_Ghosts",
+              "brand_note": "نفق DNSTT فقط · Android_Ghosts",
           }
-          existing = {node.attrib.get("name") for node in root.findall("string")}
-          changed = False
-          for name, value in additions.items():
-              if name not in existing:
+          nodes = {node.attrib.get("name"): node for node in root.findall("string")}
+          for name, value in replacements.items():
+              if name in nodes:
+                  nodes[name].text = value
+              else:
                   node = ET.SubElement(root, "string", {"name": name})
                   node.text = value
-                  changed = True
-          if changed:
-              tree.write(p, encoding="utf-8", xml_declaration=True)
-          print("Arabic brand labels verified; missing translations were added without replacing existing strings.")
+          tree.write(p, encoding="utf-8", xml_declaration=True)
+          print("Arabic branding set to DNSTT only.")
           PY
-
-      - name: Apply OpenVPN profile manager
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 "${GITHUB_WORKSPACE}/patches/apply_openvpn.py" "$PROJECT_DIR" "${GITHUB_WORKSPACE}/patches"
 
       - name: Preflight Android resources and custom views
         shell: bash
