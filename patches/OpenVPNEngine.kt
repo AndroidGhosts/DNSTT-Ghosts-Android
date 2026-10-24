@@ -130,10 +130,21 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
                 try {
-                    IOpenVPNServiceInternal.Stub.asInterface(binder)?.stopVPN(false)
+                    val stopped = IOpenVPNServiceInternal.Stub.asInterface(binder)?.stopVPN(false)
+                    recordDiagnostic(if (stopped == true) "Disconnect command accepted" else "Disconnect command sent")
+                    // Some backend/service versions do not emit a final callback when stopping
+                    // a failed connection. Never leave the UI permanently stuck in DISCONNECTING.
+                    timeoutHandler.postDelayed({
+                        if (state == "DISCONNECTING") {
+                            state = "DISCONNECTED"
+                            recordDiagnostic("Disconnect finalized after waiting for service state callback")
+                        }
+                    }, DISCONNECT_STATE_FALLBACK_MS)
                 } catch (error: Exception) {
                     Log.e(TAG, "Could not send OpenVPN disconnect", error)
                     state = "DISCONNECTED"; failed = true
+                    lastError = "Disconnect failed: " + (error.message ?: "unknown error").take(160)
+                    recordDiagnostic(lastError)
                 } finally { runCatching { appContext.unbindService(this) } }
             }
             override fun onServiceDisconnected(name: ComponentName?) {
@@ -174,6 +185,7 @@ internal object OpenVPNEngine : VpnStatus.StateListener, VpnStatus.ByteCountList
     }
     override fun setConnectedVPN(uuid: String?) = Unit
     private const val CONNECTION_DEADLINE_MS = 120_000L
+    private const val DISCONNECT_STATE_FALLBACK_MS = 3_000L
 
     override fun updateByteCount(inBytes: Long, outBytes: Long, diffIn: Long, diffOut: Long) {
         downloadBytes = inBytes.coerceAtLeast(0L)
